@@ -23,6 +23,7 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 2. Arek wyciąga zza pleców miecz i unosi go nad głowę, z nieba uderza **piorun**, następuje **transformacja** w złotą zbroję i Arek biegnie za psem – zaczyna się poziom 1.
 3. Po zdobyciu 1000 pkt ekran gwałtownie przesuwa się do areny, gdzie czeka Fibi. Nadjeżdża ksiądz Kamil i zaczyna się **walka z bossem**.
 4. Po pokonaniu Kamila ten w szale wsiada do auta, **zabiera Fibi i odjeżdża**. Arek rusza w pościg – **poziom 2** (3000 pkt, nowe potworki).
+5. Na końcu poziomu 2 Kamil wraca swoim autem – **finałowa walka**. Po jego pokonaniu gracz wygrywa i gra się kończy.
 
 ### Postacie
 | Postać | Rola | Opis |
@@ -40,6 +41,7 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 | Poziom 1 | **1000 pkt** | beczki (też podwójne), zielony potworek, serduszka |
 | Boss: ksiądz Kamil | 3 trafienia w Kamila | miecz lub skok na głowę, czary-krzyżyki |
 | Poziom 2 | **3000 pkt** (licznik od 0) | szybszy ekran, więcej potworków: ghoul, imp, nietoperz |
+| Finałowy boss: ksiądz Kamil | pokonać Kamila (więcej żyć) | więcej czarów, auto do zniszczenia, potem ostrzejsze ataki; wygrana = koniec gry |
 
 ### Poziom 1
 - Ekran sam przesuwa się w prawo; Arek zawsze biegnie w prawo – gracz może tylko **przyspieszyć** (→) albo **zwolnić** (←), ale nie zatrzymać się ani cofnąć. Arek nie wychodzi poza ekran.
@@ -57,9 +59,16 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 6. Po wygranej Kamil w szale wskakuje do auta, zabiera Fibi i odjeżdża w prawo; ekran rusza dalej → poziom 2.
 
 ### Poziom 2
-- Cel: **3000 pkt** zdobytych w poziomie 2 (licznik zaczyna się od 0), potem ekran **YOU WIN!**.
+- Cel: **3000 pkt** zdobytych w poziomie 2 (licznik zaczyna się od 0), potem finałowa walka z Kamilem.
 - Szybszy ekran i częstsze potworki; beczki jak wcześniej (podwójne od początku).
 - Potworki (placeholdery): **ghoul** (zielony, +50), **imp** (czerwony, szybki, biegnie na Arka, +70), **bat** (nietoperz, leci falująco na wysokości, +60).
+
+### Finałowy boss: ksiądz Kamil (do zrobienia)
+1. Po 3000 pkt w poziomie 2 – jak przy pierwszym bossie: sterowanie się blokuje, ekran przesuwa się do **statycznej areny**.
+2. Nadjeżdża ksiądz Kamil swoim samochodem i zaczyna się walka.
+3. Kamil ma **więcej żyć** niż w pierwszej walce i **więcej czarów** (częściej rzuca krzyżyki).
+4. **Auto Kamila można zniszczyć** (np. mieczem). Po zniszczeniu auta Kamil atakuje **jeszcze zajadlej**.
+5. Po pokonaniu Kamila gracz **wygrywa** – ekran końca gry.
 
 ## Sterowanie
 
@@ -116,6 +125,8 @@ Szczegóły: wiki → *Assety i grafiki*.
 - Po przegranej w walce z bossem gra restartuje się od poziomu 1 (brak checkpointu przed areną).
 
 **Zrobione:** ekran tytułowy, intro z transformacją, poziom 1, boss Kamil, poziom 2, sterowanie dotykowe, animacja biegu.
+
+**Do zrobienia:** finałowa walka z księdzem Kamilem na końcu poziomu 2 (więcej żyć i czarów, niszczenie auta, ekran końca gry).
 
 **Pomysły na później**
 - Dźwięk i soundtrack chiptune
