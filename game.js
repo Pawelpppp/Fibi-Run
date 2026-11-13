@@ -57,7 +57,8 @@ const CFG = {
     INTRO_DOG_DIST: 58,        // odległość psa od Arka (pies idzie za nim, po prawej)
     INTRO_CAR_START: 4.0,      // s - kiedy wjeżdża samochód
     INTRO_CAR_SPEED: 170,      // px/s
-    INTRO_CAR_BOTTOM: 252,     // y kół samochodu (dalszy pas drogi, za Arkiem)
+    INTRO_CAR_SCALE: 0.58,     // skala auta (sprite 219x100) - dach ~ wzrost Arka (64 px); mniej = mniejsze auto
+    INTRO_CAR_BOTTOM: 248,     // y kół samochodu (dalszy pas drogi, za Arkiem)
     INTRO_SCARE_TIME: 0.6,     // s - pies się płoszy, zanim zerwie smycz
     INTRO_TURN_TIME: 0.4,      // s - Arek reaguje i odwraca się
     INTRO_DRAW_TIME: 0.9,      // s - Arek dobywa miecza (pozycja ataku)
@@ -547,8 +548,26 @@ class IntroScene extends Phaser.Scene {
         this.arek.anims.timeScale = 0.4;       // powolny spacer
         this.dog = this.add.sprite(ax + CFG.INTRO_DOG_DIST, gy + 1, 'dog_1').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
         this.dog.play('dog_walk');
-        this.car = this.add.sprite(-140, CFG.INTRO_CAR_BOTTOM, 'car_1').setOrigin(0.5, 1).setDepth(5).setVisible(false);
-        this.car.play('car_drive');
+        // auto zmniejszone wygładzonym skalowaniem do nowej tekstury (ostre piksele przy skali 1:1)
+        const cs = CFG.INTRO_CAR_SCALE, sf = (n) => {
+            const key = `car_${n}_s${cs}`;
+            if (!this.textures.exists(key)) {
+                const src = this.textures.get('car_' + n).getSourceImage();
+                const tex = this.textures.createCanvas(key, Math.round(src.width * cs), Math.round(src.height * cs));
+                const c = tex.getContext();
+                c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+                c.drawImage(src, 0, 0, tex.width, tex.height);
+                tex.refresh();
+            }
+            return key;
+        };
+        const carKeys = [sf(1), sf(2)];
+        if (!this.anims.exists('car_drive_s')) {
+            this.anims.create({ key: 'car_drive_s', frameRate: 8, repeat: -1, frames: carKeys.map(key => ({ key })) });
+        }
+        this.carHalf = Math.round(109.5 * cs);    // połowa szerokości auta
+        this.car = this.add.sprite(-this.carHalf - 20, CFG.INTRO_CAR_BOTTOM, carKeys[0]).setOrigin(0.5, 1).setDepth(5).setVisible(false);
+        this.car.play('car_drive_s');
         this.slash = this.add.image(0, 0, 'slash').setOrigin(0, 0.5).setDepth(7).setVisible(false);
         this.leash = this.add.graphics().setDepth(6.5);
         this.leashState = 'taut';              // 'taut' -> 'hang' po zerwaniu
@@ -580,12 +599,12 @@ class IntroScene extends Phaser.Scene {
         const arek = this.arek, dog = this.dog, car = this.car, gy = CFG.GROUND_Y;
 
         // --- samochód ---
-        if (this.t >= CFG.INTRO_CAR_START && car.x < W + 140) {
+        if (this.t >= CFG.INTRO_CAR_START && car.x < W + this.carHalf + 20) {
             car.setVisible(true);
             car.x += CFG.INTRO_CAR_SPEED * dt;
             car.y = CFG.INTRO_CAR_BOTTOM - (Math.floor(this.t * 16) % 2);   // drgania silnika
         }
-        const carFront = car.x + 100;
+        const carFront = car.x + this.carHalf - 8;
 
         // --- fazy ---
         if (this.phase === 'walk') {
