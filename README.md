@@ -26,4 +26,4 @@ Wszystkie grafiki mają transparentne tło (checkerboard w podglądzie) i są w 
 - Zaimplementować ruch w prawo, skoki, kolizje i mechanikę porywania przeciwników
 - Dodać przeciwników, tła, UI
 
-Projekt stworzony na podstawie zdjęć Arka w stylu inspirowanym Mustache Protocol (Henry Cavill).
+Projekt stworzony w stylu inspirowanym Mustache Protocol (Henry Cavill).
