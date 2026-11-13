@@ -282,7 +282,31 @@ def copy_car():
         a = np.array(im)
         a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)   # alfa binarna (pixel art)
         Image.fromarray(a, 'RGBA').save(os.path.join(OUT, f'car_{n}.png'))
-    print('car frames copied')
+        Image.fromarray(empty_seat(a), 'RGBA').save(os.path.join(OUT, f'car_empty_{n}.png'))
+    print('car frames copied (+ wersje z pustym fotelem kierowcy: car_empty_*.png)')
+
+
+def empty_seat(a):
+    """Wersja auta BEZ kierowcy (na sprite'cie auta Kamil siedzi za szybą, więc gdy ksiądz
+    stoi obok, byłby 'podwójny Kamil'). Zamalowujemy okolice kierowcy w przedniej szybie
+    kolorem szyby; zostają słupki, fotel i obramowanie. Zmiana tylko pikseli w oknie."""
+    a = a.copy().astype(int)
+    G1, G2 = np.array([139, 163, 183]), np.array([120, 129, 151])    # kolory szyby na sprite'cie
+
+    def glass(p):
+        return abs(p[:3] - G1).sum() < 12 or abs(p[:3] - G2).sum() < 12
+    for y in range(8, 41):
+        xr = next((x for x in range(150, 100, -1) if glass(a[y, x])), None)   # prawa krawędź szyby w tym rzędzie
+        if xr is None:
+            continue
+        for x in range(80 if y < 20 else 84, xr + 1):
+            a[y, x, :3] = G1                                                 # kierowca, kierownica, refleksy -> szyba
+    for y in range(40, 44):                                                  # dłoń / mankiet na krawędzi okna -> ciemny próg
+        for x in range(100, 140):
+            r, g, b = a[y, x, :3]
+            if (r > 140 and g > 90 and r - b > 50) or (r > 200 and g > 200 and b > 190):
+                a[y, x, :3] = (38, 43, 35)
+    return a.astype('uint8')
 
 
 def write_bundle():

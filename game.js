@@ -102,6 +102,39 @@ const CFG = {
     CROSS_LOW_Y: 12,            // wysokość środka niskiego krzyżyka nad ziemią
     CROSS_HIGH_Y: 68,           // wysokość środka wysokiego krzyżyka nad ziemią
 
+    // --- finałowy boss (po poziomie 2) ---
+    FINAL_BOSS_HP: 6,           // życia Kamila w finale
+    FINAL_BOSS_SPEED: 78,       // px/s - chód
+    FINAL_SPELL_MIN: 1.4,       // s - odstęp między czarami
+    FINAL_SPELL_MAX: 2.4,
+    FINAL_SPELL_WINDUP: 0.5,    // s - zapowiedź czaru
+    FINAL_VOLLEY_CHANCE: 0.35,  // szansa na salwę (kilka krzyżyków jeden za drugim)
+    FINAL_DOUBLE_CHANCE: 0.3,   // szansa na czar w obie strony naraz
+    FINAL_VOLLEY_COUNT: 3,      // krzyżyków w salwie
+    FINAL_VOLLEY_GAP: 0.24,     // s - odstęp między krzyżykami w salwie
+    CAR_HP: 5,                  // trafienia mieczem, które niszczą auto Kamila
+    CAR_HIT_COOLDOWN: 0.35,     // s - jedno cięcie to jedno trafienie
+    CAR_SMOKE_HP: 3,            // od tylu HP auta zaczyna dymić
+    CAR_FIRE_HP: 1,             // od tylu HP auta zaczyna się palić
+    CAR_BLAST_HURTS: true,      // wybuch rani, jeśli stoisz tuż przy aucie
+    CAR_BLAST_RADIUS: 26,       // px - zasięg wybuchu poza obrysem auta
+    CAR_DROPS_HEART: true,      // z wraku wypada serduszko
+    FURY_SPEED: 1.55,           // mnożnik prędkości Kamila po zniszczeniu auta
+    FURY_SPELL_MIN: 0.9,        // s - odstęp między czarami w szale
+    FURY_SPELL_MAX: 1.6,
+    FURY_VOLLEY_COUNT: 5,       // krzyżyków w salwie w szale
+    FURY_CHARGE_CHANCE: 0.4,    // szansa na szarżę po każdej pauzie
+    FURY_CHARGE_WINDUP: 0.55,   // s - zapowiedź szarży (Kamil się trzęsie)
+    FURY_CHARGE_SPEED: 230,     // px/s - szarża
+    FURY_CHARGE_TIME: 0.8,      // s - jak długo biegnie
+    FURY_TIRED: 0.9,            // s - po szarży zmęczony (można go bić)
+    BOSS_RETRY_LIVES: 3,        // życia po "TRY AGAIN" w arenie (checkpoint)
+
+    // --- zakończenie ---
+    ENDING_DARKEN: 0.55,        // zaciemnienie przed piorunem (0..1)
+    ENDING_WALK_SPEED: 58,      // px/s - Arek odchodzi w lewo
+    ENDING_FIBI: true,          // Fibi dobiega do Arka na koniec
+
     // --- poziom 2 (po pokonaniu Kamila; licznik punktów zaczyna od 0) ---
     LEVEL2: {
         GOAL_SCORE: 3000,        // tyle punktów trzeba zdobyć w poziomie 2
@@ -163,7 +196,15 @@ const GLYPHS = {
     '+': '00000,00100,00100,11111,00100,00100,00000', '/': '00001,00001,00010,00100,01000,10000,10000',
     '!': '00100,00100,00100,00100,00100,00000,00100', '?': '01110,10001,00001,00010,00100,00000,00100',
     '=': '00000,00000,11111,00000,11111,00000,00000', '<': '00010,00100,01000,10000,01000,00100,00010',
+    'Ł': '10000,10000,10100,11000,10000,10000,11111',
     '>': '01000,00100,00010,00001,00010,00100,01000', ' ': '00000,00000,00000,00000,00000,00000,00000',
+};
+
+/** Polskie znaki: litera bazowa + znak (a = kreska nad literą, d = kropka, o = ogonek pod literą). */
+const ACCENTS = { 'Ą': ['A', 'o'], 'Ę': ['E', 'o'], 'Ć': ['C', 'a'], 'Ś': ['S', 'a'], 'Ź': ['Z', 'a'], 'Ż': ['Z', 'd'], 'Ó': ['O', 'a'], 'Ń': ['N', 'a'] };
+const accentInfo = (str) => {
+    const marks = [...str].map(ch => (ACCENTS[ch] ? ACCENTS[ch][1] : ''));
+    return { top: marks.some(m => m === 'a' || m === 'd') ? 2 : 0, bot: marks.some(m => m === 'o') ? 1 : 0 };
 };
 
 /** Tekstura z napisem (cache po treści). o: {scale, color, shadow} */
@@ -171,15 +212,19 @@ function pxTextKey(scene, str, o) {
     const key = `px|${str}|${o.scale}|${o.color}|${o.shadow || ''}`;
     if (scene.textures.exists(key)) return key;
     const s = o.scale, off = o.shadow ? Math.max(1, Math.round(s / 2)) : 0;
-    const tex = scene.textures.createCanvas(key, Math.max(1, (str.length * 6 - 1) * s + off), 7 * s + off);
+    const ai = accentInfo(str);
+    const tex = scene.textures.createCanvas(key, Math.max(1, (str.length * 6 - 1) * s + off), (7 + ai.top + ai.bot) * s + off);
     const c = tex.getContext();
     const draw = (dx, dy, col) => {
         c.fillStyle = col;
         [...str].forEach((ch, i) => {
-            const g = (GLYPHS[ch] || GLYPHS[' ']).split(',');
-            g.forEach((row, r) => [...row].forEach((v, k) => {
-                if (v === '1') c.fillRect(i * 6 * s + k * s + dx, r * s + dy, s, s);
-            }));
+            const acc = ACCENTS[ch];
+            const g = (GLYPHS[acc ? acc[0] : ch] || GLYPHS[' ']).split(',');
+            const px = (cx, cy) => c.fillRect(i * 6 * s + cx * s + dx, (cy + ai.top) * s + dy, s, s);
+            g.forEach((row, r) => [...row].forEach((v, k) => { if (v === '1') px(k, r); }));
+            if (acc && acc[1] === 'a') { px(3, -2); px(2, -1); }
+            else if (acc && acc[1] === 'd') px(2, -1);
+            else if (acc && acc[1] === 'o') px(4, 7);
         });
     };
     if (o.shadow) for (let k = off; k >= 1; k--) draw(k, k, o.shadow);
@@ -191,10 +236,15 @@ function pxTextKey(scene, str, o) {
 /** Obraz z napisem; .setString(nowy) podmienia tekst. */
 function pxText(scene, x, y, str, opts) {
     const o = Object.assign({ scale: 2, color: '#ffffff', shadow: '#000000', ox: 0.5, oy: 0 }, opts);
-    const img = scene.add.image(x, y, pxTextKey(scene, str, o)).setOrigin(o.ox, o.oy);
+    const img = scene.add.image(x, y, pxTextKey(scene, str, o));
+    const fixOrigin = () => {                      // znaki nad linią (Ś, Ż...) nie przesuwają napisu w pionie
+        const ai = accentInfo(img._str), h = img.frame.height;
+        img.setOrigin(o.ox, (ai.top * o.scale + o.oy * 7 * o.scale) / h);
+    };
     img._str = str;
+    fixOrigin();
     img.setString = (s) => {
-        if (s !== img._str) { img._str = s; img.setTexture(pxTextKey(scene, s, o)); }
+        if (s !== img._str) { img._str = s; img.setTexture(pxTextKey(scene, s, o)); fixOrigin(); }
         return img;
     };
     return img;
@@ -535,10 +585,10 @@ function makeButton(scene, cx, y, w, h, label, onClick, depth) {
 
 /** Samochód Kamila zmniejszony wygładzonym skalowaniem do nowych tekstur (ostre piksele przy skali 1:1). */
 function makeCar(scene, cs) {
-    const keys = [1, 2].map(n => {
-        const key = `car_${n}_s${cs}`;
+    const scaled = (prefix) => [1, 2].map(n => {
+        const key = `${prefix}_${n}_s${cs}`;
         if (!scene.textures.exists(key)) {
-            const src = scene.textures.get('car_' + n).getSourceImage();
+            const src = scene.textures.get(`${prefix}_${n}`).getSourceImage();
             const tex = scene.textures.createCanvas(key, Math.round(src.width * cs), Math.round(src.height * cs));
             const c = tex.getContext();
             c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
@@ -547,10 +597,73 @@ function makeCar(scene, cs) {
         }
         return key;
     });
+    const keys = scaled('car');
+    const emptyKeys = scaled('car_empty');          // to samo auto, ale z pustym siedzeniem kierowcy
     if (!scene.anims.exists('car_drive_s')) {
         scene.anims.create({ key: 'car_drive_s', frameRate: 8, repeat: -1, frames: keys.map(key => ({ key })) });
     }
-    return { keys, half: Math.round(109.5 * cs) };
+    return { keys, emptyKeys, half: Math.round(109.5 * cs) };
+}
+
+/** Piorun z nieba w punkt (tx, ty) rysowany na grafice g (przed każdą klatką trzeba wyczyścić g). */
+function drawLightning(g, tx, ty) {
+    g.clear();
+    const tip = { x: tx, y: ty };
+    const pts = [[Phaser.Math.Between(-20, 20) + tip.x, -4]];
+    const n = Math.ceil(tip.y / 18);
+    for (let i = 1; i <= n; i++) {
+        const y = Math.min(tip.y, i * 18), j = 1 - i / n;
+        pts.push([i === n ? tip.x : tip.x + (Math.random() - 0.5) * 46 * j + (Math.random() - 0.5) * 6, y]);
+    }
+    const draw = (path, w, col, al) => {
+        g.fillStyle(col, al);
+        for (let i = 1; i < path.length; i++) {
+            const [x0, y0] = path[i - 1], [x1, y1] = path[i], steps = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / 2));
+            for (let k = 0; k <= steps; k++) {
+                const u = k / steps;
+                g.fillRect(Math.round(x0 + (x1 - x0) * u - w / 2), Math.round(y0 + (y1 - y0) * u), w, 2);
+            }
+        }
+    };
+    const m = pts[Math.floor(pts.length / 2)], br = [m, [m[0] + (Math.random() < 0.5 ? -26 : 26), m[1] + 26], [m[0] + (Math.random() < 0.5 ? -34 : 34), m[1] + 48]];
+    [pts, br].forEach((path, idx) => {
+        const k = idx ? 0.6 : 1;
+        draw(path, Math.round(11 * k), 0x4a6cff, 0.4);
+        draw(path, Math.round(6 * k), 0xbfe0ff, 0.85);
+        draw(path, Math.max(2, Math.round(3 * k)), 0xffffff, 1);
+    });
+    g.fillStyle(0xffffff, 0.9).fillRect(Math.round(tip.x) - 7, Math.round(tip.y) - 3, 14, 6);
+    g.fillStyle(0xffffff, 0.5).fillRect(Math.round(tip.x) - 12, Math.round(tip.y) - 1, 24, 2);
+}
+
+/* ---------- dźwięk: cienkie opakowania (gra działa też bez audio.js) ---------- */
+const audioPlay = (n) => { if (window.FibiAudio) FibiAudio.play(n); };
+const audioStop = (f) => { if (window.FibiAudio) FibiAudio.stop(f); };
+const audioSfx = (n) => { if (window.FibiAudio) FibiAudio.sfx(n); };
+
+/** Przycisk wyciszenia (piksel-art głośnik): klik/tap, klawisz M obsługuje audio.js. */
+function addMuteButton(scene, x, y, depth) {
+    const pal = { k: '#1e0c30', g: '#ffd040', w: '#ffffff', r: '#ff4040' };
+    const on = [
+        '................', '......g.........', '.....gg....w....', '.gggggg.....w...', '.gggggg..w...w..', '.gggggg..w...w..',
+        '.gggggg..w...w..', '.gggggg.....w...', '.....gg....w....', '......g.........',
+    ];
+    const off = [
+        '................', '......g.........', '.....gg.........', '.gggggg..r...r..', '.gggggg...r.r...', '.gggggg....r....',
+        '.gggggg...r.r...', '.gggggg..r...r..', '.....gg.........', '......g.........',
+    ];
+    artTex(scene, 'mute_on', on, pal, 2);
+    artTex(scene, 'mute_off', off, pal, 2);
+    const w = 44, h = 32, d = depth || 40;
+    const back = scene.add.rectangle(x, y, w, h, 0x1e0c30, 0.82).setOrigin(0).setScrollFactor(0).setDepth(d).setStrokeStyle(2, 0xffd040);
+    const icon = scene.add.image(x + w / 2, y + h / 2, window.FibiAudio && FibiAudio.muted ? 'mute_off' : 'mute_on').setScrollFactor(0).setDepth(d + 0.1);
+    const zone = scene.add.zone(x - 4, y - 4, w + 8, h + 8).setOrigin(0).setScrollFactor(0).setDepth(d + 0.2).setInteractive({ useHandCursor: true });
+    const refresh = () => { icon.setTexture(window.FibiAudio && FibiAudio.muted ? 'mute_off' : 'mute_on'); back.setStrokeStyle(2, window.FibiAudio && FibiAudio.muted ? 0xff6050 : 0xffd040); };
+    zone.on('pointerdown', () => { if (window.FibiAudio) FibiAudio.toggleMute(); });
+    const unsub = window.FibiAudio ? FibiAudio.onChange(refresh) : null;
+    scene.events.once('shutdown', () => { if (unsub) unsub(); });
+    refresh();
+    return { back, icon, zone };
 }
 
 /* =====================================================================
@@ -560,7 +673,7 @@ class BootScene extends Phaser.Scene {
     constructor() { super('Boot'); }
     preload() {
         this.cameras.main.setBackgroundColor('#0c0818');
-        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'fibi_face', 'car_1', 'car_2', 'arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_stand', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand', 'kamil_stand', 'kamil_walk_1', 'kamil_walk_2'];
+        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'fibi_face', 'car_1', 'car_2', 'car_empty_1', 'car_empty_2', 'arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_stand', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand', 'kamil_stand', 'kamil_walk_1', 'kamil_walk_2'];
         names.forEach(n => {
             // data-URI (assets/game/assets.js) działa też z file://; fallback: zwykłe pliki
             const src = (window.AREK_ASSETS && window.AREK_ASSETS[n]) || `assets/game/${n}.png`;
@@ -618,6 +731,7 @@ class TitleScene extends Phaser.Scene {
         const start = () => {
             if (this.starting) return;
             this.starting = true;
+            audioSfx('click');
             this.cameras.main.fadeOut(180, 12, 8, 24);
             const next = /[?&]nointro\b/.test(location.search) ? 'Play' : 'Intro';
             this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(next));
@@ -628,6 +742,8 @@ class TitleScene extends Phaser.Scene {
         if (!IS_TOUCH) {
             pxText(this, W / 2, 302, '< > SPEED   SPACE JUMP   ALT SWORD', { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(8);
         }
+        addMuteButton(this, 8, 6, 30);
+        audioPlay('title');
         const kb = this.input.keyboard;
         kb.addKeys('SPACE,ENTER', true);
         kb.on('keydown-SPACE', start);
@@ -688,7 +804,9 @@ class IntroScene extends Phaser.Scene {
         const skip = () => { if (this.t > CFG.INTRO_SKIP_GUARD) this.finish(); };
         kb.on('keydown-SPACE', skip);
         kb.on('keydown-ENTER', skip);
-        this.input.on('pointerdown', skip);
+        this.input.on('pointerdown', (p, over) => { if (!over || !over.length) skip(); });   // tap w przycisk mute nie pomija intra
+        addMuteButton(this, 8, 6, 30);
+        audioPlay('intro');
         this.cameras.main.fadeIn(250, 12, 8, 24);
     }
 
@@ -837,39 +955,10 @@ class IntroScene extends Phaser.Scene {
         this.tweens.add({ targets: this.flashRect, alpha: 0, duration: 200 });
         this.boltT = 0;
         this.drawBolt();
+        audioSfx('lightning');
         this.sparkle(this.swordTip.x, this.swordTip.y, 14, [0xffffff, 0xbfe0ff, 0x6a8cff]);
     }
-    drawBolt() {
-        const g = this.boltG, tip = this.swordTip;
-        g.clear();
-        const pts = [[Phaser.Math.Between(-20, 20) + tip.x, -4]];
-        const n = Math.ceil(tip.y / 18);
-        for (let i = 1; i <= n; i++) {
-            const y = Math.min(tip.y, i * 18), j = 1 - i / n;
-            pts.push([i === n ? tip.x : tip.x + (Math.random() - 0.5) * 46 * j + (Math.random() - 0.5) * 6, y]);
-        }
-        const draw = (path, w, col, al) => {
-            g.fillStyle(col, al);
-            for (let i = 1; i < path.length; i++) {
-                const [x0, y0] = path[i - 1], [x1, y1] = path[i], steps = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / 2));
-                for (let k = 0; k <= steps; k++) {
-                    const u = k / steps;
-                    g.fillRect(Math.round(x0 + (x1 - x0) * u - w / 2), Math.round(y0 + (y1 - y0) * u), w, 2);
-                }
-            }
-        };
-        // gałązka pioruna
-        const m = pts[Math.floor(pts.length / 2)], br = [m, [m[0] + (Math.random() < 0.5 ? -26 : 26), m[1] + 26], [m[0] + (Math.random() < 0.5 ? -34 : 34), m[1] + 48]];
-        [pts, br].forEach((path, idx) => {
-            const k = idx ? 0.6 : 1;
-            draw(path, Math.round(11 * k), 0x4a6cff, 0.4);
-            draw(path, Math.round(6 * k), 0xbfe0ff, 0.85);
-            draw(path, Math.max(2, Math.round(3 * k)), 0xffffff, 1);
-        });
-        // błysk w miejscu uderzenia
-        g.fillStyle(0xffffff, 0.9).fillRect(Math.round(tip.x) - 7, Math.round(tip.y) - 3, 14, 6);
-        g.fillStyle(0xffffff, 0.5).fillRect(Math.round(tip.x) - 12, Math.round(tip.y) - 1, 24, 2);
-    }
+    drawBolt() { drawLightning(this.boltG, this.swordTip.x, this.swordTip.y); }
 
     sparkle(x, y, n, colors) {
         for (let i = 0; i < n; i++) {
@@ -958,6 +1047,7 @@ class PlayScene extends Phaser.Scene {
     init(data) {
         this.startX = (data && data.startX) || 130;
         this.startLevel = (data && data.level) || 1;
+        this.startArena = !!(data && data.arena);       // checkpoint: po przegranej z bossem wracamy od razu do areny
     }
 
     /** Parametry poziomu (poziom 1: stałe CFG, poziom 2: CFG.LEVEL2). */
@@ -979,7 +1069,7 @@ class PlayScene extends Phaser.Scene {
 
     create() {
         this.state = 'play';
-        this.mode = 'run';          // 'run' | 'rush' | 'arrive' | 'boss' | 'bossend'
+        this.mode = 'run';          // 'run' | 'rush' | 'arrive' | 'boss' | 'bossend' | 'ending'
         this.level = this.startLevel;
         this.L = this.levelParams(this.level);
         this.camX = 0;
@@ -993,11 +1083,14 @@ class PlayScene extends Phaser.Scene {
         this.attackCd = 0;
         this.facing = 1;
         this.barrels = []; this.monsters = []; this.hearts = []; this.crosses = [];
-        this.boss = null; this.fibi = null; this.car = null;
+        this.boss = null; this.fibi = null; this.car = null; this.carObj = null; this.carBar = null; this.carInfo = null;
+        this.final = false; this.bossReached = false; this.arekManual = false; this.arekDY = 0; this.endVx = 0; this.endTarget = null; this.endDog = null; this.endDone = false;
+        this.bossHudOn = false; this.heroMoving = false;
         this.spawning = true;
         this.nextObstacleX = CFG.FIRST_OBSTACLE_X;
         this.sinceHeart = 0;
         this.touch = { left: false, right: false };
+        this.rQ = false;
         this.jumpQ = false; this.attackQ = false; this.enterQ = false; this.escQ = false;
         this.stats = { barrelsPassed: 0, monstersKilled: 0, bossHits: 0 };
 
@@ -1016,9 +1109,17 @@ class PlayScene extends Phaser.Scene {
         if (IS_TOUCH) this.buildTouchButtons();
         this.spawnAhead();
 
-        if (this.level === 1) this.showBanner('LEVEL 1', `REACH ${this.L.goal} POINTS`);
+        addMuteButton(this, 126, 4, 30);
+        if (this.startArena) {                          // checkpoint walki z bossem
+            this.lives = CFG.BOSS_RETRY_LIVES;
+            this.refreshHud();
+            this.time.delayedCall(60, () => { this.score = this.L.goal; this.refreshHud(); this.startRush(); });
+        } else {
+            if (this.level === 1) this.showBanner('LEVEL 1', `REACH ${this.L.goal} POINTS`);
+            audioPlay(this.level === 2 ? 'level2' : 'level');
+        }
         if (!IS_TOUCH) {
-            this.hintTxt = pxText(this, W / 2, 292, '< > SPEED   SPACE JUMP   ALT SWORD', { scale: 2, color: '#ffffff', shadow: '#2a1608' })
+            this.hintTxt = pxText(this, W / 2, 292, '< > SPEED   SPACE JUMP   ALT SWORD   M MUTE', { scale: 2, color: '#ffffff', shadow: '#2a1608' })
                 .setScrollFactor(0).setDepth(12);
             this.tweens.add({ targets: this.hintTxt, alpha: 0, delay: 5000, duration: 600 });
         }
@@ -1047,7 +1148,7 @@ class PlayScene extends Phaser.Scene {
         this.bar = this.add.rectangle(W - 8 - 119, 27, 1, 4, 0xffd040).setOrigin(0).setScrollFactor(0).setDepth(10);
         // życia bossa (3 krzyżyki, pokazywane w walce)
         this.bossHud = [pxText(this, W / 2, 6, 'KS. KAMIL', { scale: 1, color: '#ffe060', shadow: '#3a1008' }).setScrollFactor(0).setDepth(10)];
-        for (let i = 0; i < CFG.BOSS_HP; i++) {
+        for (let i = 0; i < Math.max(CFG.BOSS_HP, CFG.FINAL_BOSS_HP); i++) {
             this.bossHud.push(this.add.image(W / 2 + (i - (CFG.BOSS_HP - 1) / 2) * 20, 16, 'cross').setOrigin(0.5, 0).setScrollFactor(0).setDepth(10));
         }
         this.bossHud.forEach(o => o.setVisible(false));
@@ -1067,6 +1168,7 @@ class PlayScene extends Phaser.Scene {
     buildInput() {
         const KC = Phaser.Input.Keyboard.KeyCodes;
         const kb = this.input.keyboard;
+        kb.on('keydown-R', () => { this.rQ = true; });
         this.keys = kb.addKeys({
             left: KC.LEFT, right: KC.RIGHT, a: KC.A, d: KC.D,
             jump: KC.SPACE, up: KC.UP, w: KC.W,
@@ -1192,7 +1294,14 @@ class PlayScene extends Phaser.Scene {
         this.refreshHud();
         this.tweens.add({ targets: this.scoreTxt, scale: 1.25, duration: 90, yoyo: true });
         if (this.score >= this.L.goal && this.mode === 'run') {
-            if (this.level === 1) this.startRush(); else this.win();
+            this.startRush();
+        }
+    }
+    sparkle(x, y, n, colors) {
+        for (let i = 0; i < n; i++) {
+            const d = this.add.image(x, y, 'dot').setTint(Phaser.Utils.Array.GetRandom(colors)).setDepth(17).setScale(Math.random() < 0.35 ? 2 : 1);
+            const ang = Math.random() * Math.PI * 2, r = 14 + Math.random() * 40;
+            this.tweens.add({ targets: d, x: x + Math.cos(ang) * r, y: y + Math.sin(ang) * r - 14, alpha: 0, duration: 450 + Math.random() * 450, onComplete: () => d.destroy() });
         }
     }
     arekBox() {
@@ -1220,13 +1329,19 @@ class PlayScene extends Phaser.Scene {
         const enterPress = this.enterQ, escPress = this.escQ;
         this.jumpQ = false; this.attackQ = false; this.enterQ = false; this.escQ = false;
 
+        const rPress = this.rQ; this.rQ = false;
+        if (this.state === 'final') {
+            if (this.endReady && (enterPress || escPress)) this.toMenu();
+            else if (this.endReady && (rPress || jumpPress)) this.scene.restart();
+            return;
+        }
         if (this.state !== 'play') {
-            if (this.endReady && (jumpPress || enterPress)) this.scene.restart();
-            else if (this.endReady && escPress) this.scene.start('Title');
+            if (this.endReady && (jumpPress || enterPress)) this.restartLevel();
+            else if (this.endReady && escPress) this.toMenu();
             return;
         }
 
-        const locked = this.mode === 'rush' || this.mode === 'arrive' || this.mode === 'bossend';
+        const locked = this.mode === 'rush' || this.mode === 'arrive' || this.mode === 'bossend' || this.mode === 'ending';
         if (locked) { jumpPress = false; attackPress = false; }
         const left = !locked && (k.left.isDown || k.a.isDown || this.touch.left);
         const right = !locked && (k.right.isDown || k.d.isDown || this.touch.right);
@@ -1256,18 +1371,21 @@ class PlayScene extends Phaser.Scene {
             if (dir) this.facing = dir;
             this.heroMoving = dir !== 0;
             animSpeed = Math.abs(dir) * CFG.BOSS_HERO_SPEED / CFG.SPEED_NORMAL;
+        } else if (this.mode === 'ending') {
+            this.updateEnding(dt);
+            animSpeed = Math.abs(this.endVx) / CFG.SPEED_NORMAL;
         } else if (this.mode === 'bossend') {
             // po zwycięstwie: tło rusza dopiero gdy auto odjedzie (startLevel2 przełącza tryb)
             this.heroMoving = false;
         } else {
             this.heroMoving = false;
         }
-        a.x = Phaser.Math.Clamp(a.x, this.camX + CFG.EDGE_MARGIN, this.camX + W - CFG.EDGE_MARGIN);
+        if (this.mode !== 'ending') a.x = Phaser.Math.Clamp(a.x, this.camX + CFG.EDGE_MARGIN, this.camX + W - CFG.EDGE_MARGIN);
         if (this.mode === 'run' || this.mode === 'rush') this.facing = 1;
 
         // --- skok / grawitacja ---
         if (jumpPress) this.jumpBuf = CFG.JUMP_BUFFER; else this.jumpBuf = Math.max(0, this.jumpBuf - dt);
-        if (this.jumpBuf > 0 && a.onGround) { a.vy = -CFG.JUMP_VELOCITY; a.onGround = false; this.jumpBuf = 0; }
+        if (this.jumpBuf > 0 && a.onGround) { audioSfx('jump'); a.vy = -CFG.JUMP_VELOCITY; a.onGround = false; this.jumpBuf = 0; }
         if (!a.onGround) {
             a.vy += CFG.GRAVITY * dt;
             a.y += a.vy * dt;
@@ -1279,6 +1397,7 @@ class PlayScene extends Phaser.Scene {
         if (this.attackT > 0) this.attackT = Math.max(0, this.attackT - dt);
         if (attackPress && this.attackCd <= 0) {
             this.attackT = CFG.ATTACK_TIME;
+            audioSfx('sword');
             this.attackCd = CFG.ATTACK_TIME + CFG.ATTACK_COOLDOWN;
         }
         const swordActive = this.attackT > 0 && this.attackT < CFG.ATTACK_TIME - 0.04;
@@ -1295,6 +1414,7 @@ class PlayScene extends Phaser.Scene {
             this.updateBoss(dt, body, sword);
             if (this.state !== 'play') return;
         }
+        if ((this.mode === 'ending' || this.mode === 'bossend') && this.carObj) this.updateCar(dt, null);   // wrak dymi dalej
         this.updateCrosses(dt, body, sword);
         if (this.state !== 'play') return;
 
@@ -1306,10 +1426,11 @@ class PlayScene extends Phaser.Scene {
 
         // --- wygląd Arka ---
         const sx = Math.round(a.x), sy = Math.round(a.y);
-        this.arek.setPosition(sx, sy).setFlipX(this.facing < 0);
-        const idle = (this.mode === 'arrive' || this.mode === 'bossend' || (this.mode === 'boss' && !this.heroMoving));
+        this.arek.setPosition(sx, sy + Math.round(this.arekDY)).setFlipX(this.facing < 0);
+        const idle = (this.mode === 'arrive' || this.mode === 'bossend' || ((this.mode === 'boss' || this.mode === 'ending') && !this.heroMoving));
         let pose = 'run';
         if (this.attackT > 0) pose = 'attack'; else if (!a.onGround) pose = 'jump'; else if (idle) pose = 'idle';
+        if (this.arekManual) pose = this.pose;          // finał: pozą Arka steruje sekwencja zakończenia
         if (pose !== this.pose) {
             this.pose = pose;
             if (pose === 'run') this.arek.play('run');
@@ -1318,7 +1439,7 @@ class PlayScene extends Phaser.Scene {
         if (pose === 'run') {
             this.arek.anims.timeScale = Phaser.Math.Clamp(animSpeed, CFG.RUN_TIMESCALE_MIN, CFG.RUN_TIMESCALE_MAX);   // kadencja ~ prędkość względem podłoża
         }
-        this.slash.setVisible(this.attackT > CFG.ATTACK_TIME * 0.35)
+        this.slash.setVisible(this.attackT > CFG.ATTACK_TIME * 0.35 && this.mode !== 'ending')
             .setOrigin(this.facing > 0 ? 0 : 1, 0.5).setFlipX(this.facing < 0)
             .setPosition(sx + CFG.SLASH_OFFSET_X * this.facing, sy - 30);
         this.slash.setAlpha(Math.min(1, this.attackT / (CFG.ATTACK_TIME * 0.6)));
@@ -1363,22 +1484,14 @@ class PlayScene extends Phaser.Scene {
             }
             if (b.wx < this.camX - 60) { b.s.destroy(); this.barrels.splice(i, 1); }
         }
-        for (let i = this.hearts.length - 1; i >= 0; i--) {
-            const h = this.hearts[i];
-            if (PlayScene.hit(body, { l: h.wx - h.hw, r: h.wx + h.hw, t: h.y - 8, b: h.y + 8 })) {
-                this.lives = Math.min(CFG.MAX_LIVES, this.lives + 1);
-                this.popup(h.wx, h.y - 10, '+1 LIFE', '#ff7080');
-                this.burst(h.wx, h.y, 0xff4060);
-                h.s.destroy(); this.tweens.killTweensOf(h.s); this.hearts.splice(i, 1);
-                this.refreshHud();
-            } else if (h.wx < this.camX - 40) { this.tweens.killTweensOf(h.s); h.s.destroy(); this.hearts.splice(i, 1); }
-        }
+        this.updateHearts(body);
         return this.state === 'play';
     }
 
     killMonster(m) {
         m.dead = true;
         this.stats.monstersKilled++;
+        audioSfx('kill');
         const s = m.s;
         s.anims.stop();
         s.setTint(0xffffff);
@@ -1395,6 +1508,7 @@ class PlayScene extends Phaser.Scene {
         if (this.invuln > 0 || this.state !== 'play') return;
         this.lives -= 1;
         this.refreshHud();
+        audioSfx('hurt');
         this.cameras.main.shake(160, 0.012);
         this.cameras.main.flash(120, 255, 60, 60);
         if (this.lives <= 0) { this.gameOver(); return; }
@@ -1403,20 +1517,25 @@ class PlayScene extends Phaser.Scene {
     }
 
     /* =================================================================
-       KONIEC POZIOMU 1 -> PRZELOT EKRANU -> ARENA -> WALKA Z KAMILEM
+       KONIEC POZIOMU -> PRZELOT EKRANU -> ARENA -> WALKA Z KAMILEM
+       (po poziomie 1: pierwszy boss, po poziomie 2: finałowy boss z autem do zniszczenia)
        ================================================================= */
     startRush() {
         this.mode = 'rush';
+        this.final = this.level === 2;
+        this.bossReached = true;                // od teraz "Try again" zaczyna od areny (checkpoint)
         this.invuln = 99;                       // w trakcie przejścia nic nie rani
         this.clearWorld(250);
         this.rushT = 0;
         this.rushFrom = this.camX;
         this.rushSX0 = this.a.x - this.camX;
         this.arenaCamX = this.rushFrom + CFG.ARENA_RUSH_DISTANCE;
-        this.popup(this.a.x, this.a.y - 70, 'LEVEL 1 CLEAR!', '#ffffff');
-        // Fibi czeka na prawym końcu areny
-        this.fibi = this.add.sprite(this.arenaCamX + W - 36, CFG.GROUND_Y + 1, 'fibi_stand').setOrigin(0.5, 1).setDepth(5.5).setFlipX(true);
+        this.popup(this.a.x, this.a.y - 70, `LEVEL ${this.level} CLEAR!`, '#ffffff');
+        if (!this.final) {                      // Fibi czeka na prawym końcu areny (w finale Kamil już go ma)
+            this.fibi = this.add.sprite(this.arenaCamX + W - 36, CFG.GROUND_Y + 1, 'fibi_stand').setOrigin(0.5, 1).setDepth(5.5).setFlipX(true);
+        }
         this.cameras.main.flash(160, 255, 255, 255);
+        audioStop(0.5); audioSfx('rush');
     }
 
     startArrive() {
@@ -1424,7 +1543,7 @@ class PlayScene extends Phaser.Scene {
         this.camX = this.arenaCamX;
         this.attackT = 0;
         this.invuln = 0.01;
-        const info = makeCar(this, CFG.INTRO_CAR_SCALE);
+        const info = this.carInfo = makeCar(this, CFG.INTRO_CAR_SCALE);
         this.carHalf = info.half;
         const stopX = this.camX + W * CFG.ARENA_CAR_STOP;
         this.car = this.add.sprite(this.camX - this.carHalf - 30, CFG.INTRO_CAR_BOTTOM, info.keys[0]).setOrigin(0.5, 1).setDepth(4.8);
@@ -1438,22 +1557,34 @@ class PlayScene extends Phaser.Scene {
     }
 
     kamilGetsOut() {
-        const car = this.car;
+        const car = this.car, fin = this.final;
         const kx = car.x - 14;
+        const hp = fin ? CFG.FINAL_BOSS_HP : CFG.BOSS_HP;
         const s = this.add.sprite(kx, CFG.GROUND_Y, 'kamil_stand').setOrigin(0.5, 1).setDepth(6).setFlipX(true).setAlpha(0);
-        this.boss = { s, x: kx, vx: 0, hp: CFG.BOSS_HP, invuln: 0, stun: 0, state: 'idle', stateT: 0.4, spellCd: 1.6, target: kx, face: -1, knock: 0, rage: false };
+        this.boss = { s, x: kx, vx: 0, hp, maxHp: hp, invuln: 0, stun: 0, state: 'idle', stateT: 0.4, spellCd: 1.6, target: kx, face: -1, knock: 0,
+            rage: false, fury: false, pattern: 'single' };
+        if (fin) this.carObj = { hp: CFG.CAR_HP, max: CFG.CAR_HP, cd: 0, alive: true, fx: 0 };
         this.time.delayedCall(450, () => {
+            car.setTexture(this.carInfo.emptyKeys[0]);                  // kierowca wysiadł - puste siedzenie (bez "podwójnego Kamila")
             this.tweens.add({ targets: car, y: car.y - 2, duration: 80, yoyo: true, repeat: 1 });   // drzwi
             this.tweens.add({ targets: s, alpha: 1, y: CFG.GROUND_Y - 16, duration: 180, yoyo: true,
                 onComplete: () => { s.y = CFG.GROUND_Y; } });
             this.time.delayedCall(420, () => {
-                this.bossHud.forEach(o => o.setVisible(true));
-                this.refreshHud();
-                this.showBanner('BOSS FIGHT', 'KS. KAMIL');
+                this.setBossHud(true);
+                this.showBanner(fin ? 'FINAL BOSS' : 'BOSS FIGHT', 'KS. KAMIL');
                 this.invuln = 0;
                 this.mode = 'boss';
+                audioPlay(fin ? 'finalboss' : 'boss');
             });
         });
+    }
+
+    setBossHud(on) {
+        this.bossHudOn = on;
+        const n = this.boss ? this.boss.maxHp : CFG.BOSS_HP;
+        this.bossHud[0].setVisible(on);
+        this.bossHud.slice(1).forEach((c, i) => c.setVisible(on && i < n).setX(W / 2 + (i - (n - 1) / 2) * 17));
+        this.refreshHud();
     }
 
     /* ---------- walka ---------- */
@@ -1462,13 +1593,16 @@ class PlayScene extends Phaser.Scene {
         return { l: b.x - 11, r: b.x + 11, t: CFG.GROUND_Y - 58, b: CFG.GROUND_Y };
     }
     updateBoss(dt, body, sword) {
-        const b = this.boss, a = this.a;
+        const b = this.boss, a = this.a, fin = this.final;
         if (!b || b.hp <= 0) return;
         b.invuln = Math.max(0, b.invuln - dt);
         b.stun = Math.max(0, b.stun - dt);
-        const lost = CFG.BOSS_HP - b.hp;
-        const speed = CFG.BOSS_SPEED * (1 + CFG.BOSS_RAGE_SPEED * lost);
+        const lostFrac = (b.maxHp - b.hp) / b.maxHp;
+        const baseSpeed = fin ? CFG.FINAL_BOSS_SPEED : CFG.BOSS_SPEED;
+        const speed = baseSpeed * (1 + CFG.BOSS_RAGE_SPEED * 3 * lostFrac) * (b.fury ? CFG.FURY_SPEED : 1);
         const minX = this.camX + 40, maxX = this.camX + W - 40;
+        const windup = fin ? CFG.FINAL_SPELL_WINDUP : CFG.BOSS_SPELL_WINDUP;
+        if (fin) this.updateCar(dt, sword);
 
         if (b.stun > 0) {
             b.x += b.knock * dt; b.knock *= Math.pow(0.02, dt);          // odskok po trafieniu
@@ -1476,10 +1610,25 @@ class PlayScene extends Phaser.Scene {
         } else if (b.state === 'cast') {
             b.stateT -= dt;
             b.face = Math.sign(a.x - b.x) || b.face;
-            const u = 1 - Math.max(0, b.stateT) / CFG.BOSS_SPELL_WINDUP;
+            const u = 1 - Math.max(0, b.stateT) / windup;
             if (b.cross) b.cross.setPosition(Math.round(b.x), CFG.GROUND_Y - 78 - Math.round(u * 6)).setScale(1 + 0.6 * u);
             if (b.glow) b.glow.setPosition(Math.round(b.x), CFG.GROUND_Y - 78).setScale(1 + u * 1.2).setAlpha(0.5 + 0.5 * Math.sin(this.clock * 30));
             if (b.stateT <= 0) this.fireCross();
+        } else if (b.state === 'chargeWind') {                           // szał: zapowiedź szarży (trzęsie się, czerwony błysk)
+            b.stateT -= dt;
+            b.face = Math.sign(a.x - b.x) || b.face;
+            b.s.x = Math.round(b.x) + Phaser.Math.Between(-1, 1);
+            if (b.stateT <= 0) { b.state = 'charge'; b.stateT = CFG.FURY_CHARGE_TIME; b.chargeDir = b.face; b.s.play('kamil_walk'); b.s.anims.timeScale = 2.4; }
+        } else if (b.state === 'charge') {                               // szarża w stronę, w którą patrzył
+            b.stateT -= dt;
+            b.x += b.chargeDir * CFG.FURY_CHARGE_SPEED * dt;
+            b.face = b.chargeDir;
+            if (Math.random() < 0.5) this.burst(b.x - b.chargeDir * 10, CFG.GROUND_Y - 4, 0xd0b080, 1);
+            if (b.stateT <= 0 || b.x <= minX - 8 || b.x >= maxX + 8) {
+                b.state = 'idle'; b.stateT = 0.5; b.stun = CFG.FURY_TIRED; b.knock = 0;   // zmęczony: bezbronny i nieszkodliwy
+                b.s.anims.timeScale = 1;
+                this.cameras.main.shake(120, 0.006);
+            }
         } else {
             b.spellCd -= dt;
             if (b.state === 'idle') {
@@ -1488,23 +1637,33 @@ class PlayScene extends Phaser.Scene {
                 b.face = Math.sign(a.x - b.x) || b.face;
                 if (b.spellCd <= 0) this.startCast();
                 else if (b.stateT <= 0) {
-                    // raz podchodzi do Arka, raz kręci się po arenie
-                    b.target = Math.random() < 0.55 ? a.x + Phaser.Math.Between(-60, 60) : Phaser.Math.Between(minX, maxX);
-                    b.target = Phaser.Math.Clamp(b.target, minX, maxX);
-                    b.state = 'walk'; b.stateT = Phaser.Math.FloatBetween(1.0, 2.2);
-                    b.s.play('kamil_walk');
+                    if (b.fury && Math.random() < CFG.FURY_CHARGE_CHANCE) { b.state = 'chargeWind'; b.stateT = CFG.FURY_CHARGE_WINDUP; }
+                    else {
+                        // raz podchodzi do Arka, raz kręci się po arenie
+                        b.target = Math.random() < (b.fury ? 0.8 : 0.55) ? a.x + Phaser.Math.Between(-60, 60) : Phaser.Math.Between(minX, maxX);
+                        b.target = Phaser.Math.Clamp(b.target, minX, maxX);
+                        b.state = 'walk'; b.stateT = Phaser.Math.FloatBetween(1.0, 2.2);
+                        b.s.play('kamil_walk');
+                    }
                 }
             } else if (b.state === 'walk') {
                 b.stateT -= dt;
                 const d = b.target - b.x;
-                if (Math.abs(d) < 6 || b.stateT <= 0) { b.state = 'idle'; b.stateT = Phaser.Math.FloatBetween(0.3, 0.8); }
+                if (Math.abs(d) < 6 || b.stateT <= 0) { b.state = 'idle'; b.stateT = Phaser.Math.FloatBetween(0.3, b.fury ? 0.4 : 0.8); }
                 else { b.face = Math.sign(d); b.x += b.face * speed * dt; }
+                b.s.anims.timeScale = b.fury ? 1.7 : 1;
                 if (b.spellCd <= 0 && b.state === 'walk') this.startCast();
             }
         }
         b.x = Phaser.Math.Clamp(b.x, minX - 10, maxX + 10);
-        b.s.setPosition(Math.round(b.x), CFG.GROUND_Y).setFlipX(b.face < 0);
+        if (b.state !== 'chargeWind') b.s.setPosition(Math.round(b.x), CFG.GROUND_Y);
+        else b.s.y = CFG.GROUND_Y;
+        b.s.setFlipX(b.face < 0);
         b.s.setAlpha(b.invuln > 0 ? (Math.floor(b.invuln * 14) % 2 ? 0.4 : 1) : 1);
+        if (b.fury) {                                                    // czerwona poświata i iskry złości
+            b.s.setTint(Math.floor(this.clock * 10) % 2 ? 0xff6a55 : 0xffa08c);
+            if (Math.random() < 0.18) this.burst(b.x + Phaser.Math.Between(-8, 8), CFG.GROUND_Y - 50, 0xff3020, 1);
+        }
 
         const kb = this.kamilBox();
         // miecz
@@ -1515,31 +1674,59 @@ class PlayScene extends Phaser.Scene {
             if (stomp) {
                 if (b.invuln <= 0) this.hitBoss(Math.sign(b.x - a.x) || 1);
                 a.vy = -CFG.STOMP_BOUNCE; a.onGround = false; a.y = kb.t - 3;
+                audioSfx('stomp');
                 this.burst(b.x, kb.t, 0xffffff, 6);
             } else if (b.stun <= 0) this.hurt();
         }
+        this.updateHearts(body);
     }
 
+    /* ---------- czary Kamila ---------- */
     startCast() {
-        const b = this.boss;
-        b.state = 'cast'; b.stateT = CFG.BOSS_SPELL_WINDUP;
+        const b = this.boss, fin = this.final;
+        b.state = 'cast'; b.stateT = fin ? CFG.FINAL_SPELL_WINDUP : CFG.BOSS_SPELL_WINDUP;
+        b.pattern = 'single';
+        if (fin) {                                                       // w finale: salwy i czary w obie strony
+            const r = Math.random();
+            if (r < CFG.FINAL_VOLLEY_CHANCE) b.pattern = 'volley';
+            else if (r < CFG.FINAL_VOLLEY_CHANCE + CFG.FINAL_DOUBLE_CHANCE) b.pattern = 'double';
+        }
         b.s.anims.stop(); b.s.setTexture('kamil_stand');
         b.glow = this.add.image(b.x, CFG.GROUND_Y - 78, 'cross_glow').setDepth(8).setBlendMode(Phaser.BlendModes.ADD);
         b.cross = this.add.image(b.x, CFG.GROUND_Y - 78, 'cross').setDepth(8.5);
+        if (b.pattern !== 'single') b.glow.setTint(0xff8040);
+    }
+    spawnCross(x, dir, high) {
+        const cy = CFG.GROUND_Y - (high ? CFG.CROSS_HIGH_Y : CFG.CROSS_LOW_Y);
+        const s = this.add.image(x + dir * 16, cy, 'cross').setDepth(7.5);
+        const glow = this.add.image(s.x, cy, 'cross_glow').setDepth(7.4).setBlendMode(Phaser.BlendModes.ADD);
+        this.crosses.push({ s, glow, wx: x + dir * 16, cy, vx: dir * CFG.CROSS_SPEED * (this.boss && this.boss.fury ? 1.12 : 1), high });
+        this.burst(x + dir * 12, cy, 0xffe060, 8);
+        audioSfx('cross');
     }
     fireCross() {
-        const b = this.boss, a = this.a;
+        const b = this.boss, a = this.a, fin = this.final;
         const dir = Math.sign(a.x - b.x) || (b.x < this.camX + W / 2 ? 1 : -1);
-        const high = Math.random() < CFG.CROSS_HIGH_CHANCE;
-        const cy = CFG.GROUND_Y - (high ? CFG.CROSS_HIGH_Y : CFG.CROSS_LOW_Y);
+        const x0 = b.x;
         if (b.cross) { b.cross.destroy(); b.cross = null; }
         if (b.glow) { b.glow.destroy(); b.glow = null; }
-        const s = this.add.image(b.x + dir * 16, cy, 'cross').setDepth(7.5);
-        const glow = this.add.image(s.x, cy, 'cross_glow').setDepth(7.4).setBlendMode(Phaser.BlendModes.ADD);
-        this.crosses.push({ s, glow, wx: b.x + dir * 16, cy, vx: dir * CFG.CROSS_SPEED, high });
-        this.burst(b.x + dir * 12, cy, 0xffe060, 8);
-        const lost = CFG.BOSS_HP - b.hp;
-        b.spellCd = Phaser.Math.FloatBetween(CFG.BOSS_SPELL_MIN, CFG.BOSS_SPELL_MAX) * (1 - 0.12 * lost);
+        const live = () => this.boss && this.boss.hp > 0 && this.mode === 'boss';
+        const at = (delay, fn) => { if (delay <= 0) fn(); else this.time.delayedCall(delay * 1000, () => { if (live()) fn(); }); };
+        const pat = b.pattern;
+        if (pat === 'double') {                                          // jeden w lewo i jeden w prawo naraz
+            at(0, () => this.spawnCross(x0, 1, Math.random() < 0.5));
+            at(0, () => this.spawnCross(x0, -1, Math.random() < 0.5));
+        } else if (pat === 'volley') {                                   // salwa: kilka krzyżyków jeden za drugim, tej samej wysokości
+            const n = b.fury ? CFG.FURY_VOLLEY_COUNT : CFG.FINAL_VOLLEY_COUNT, high = Math.random() < CFG.CROSS_HIGH_CHANCE;
+            const gap = b.fury ? CFG.FINAL_VOLLEY_GAP * 0.75 : CFG.FINAL_VOLLEY_GAP;
+            for (let i = 0; i < n; i++) at(i * gap, () => this.spawnCross(x0, dir, high));
+        } else {
+            this.spawnCross(x0, dir, Math.random() < CFG.CROSS_HIGH_CHANCE);
+        }
+        const lostFrac = (b.maxHp - b.hp) / b.maxHp;
+        const cdMin = b.fury ? CFG.FURY_SPELL_MIN : fin ? CFG.FINAL_SPELL_MIN : CFG.BOSS_SPELL_MIN;
+        const cdMax = b.fury ? CFG.FURY_SPELL_MAX : fin ? CFG.FINAL_SPELL_MAX : CFG.BOSS_SPELL_MAX;
+        b.spellCd = Phaser.Math.FloatBetween(cdMin, cdMax) * (1 - 0.18 * lostFrac) + (pat === 'volley' ? 0.5 : 0);
         b.state = 'idle'; b.stateT = 0.5;
     }
     updateCrosses(dt, body, sword) {
@@ -1566,20 +1753,128 @@ class PlayScene extends Phaser.Scene {
         if (b.cross) { b.cross.destroy(); b.cross = null; }
         if (b.glow) { b.glow.destroy(); b.glow = null; }
         b.state = 'idle'; b.stateT = 0.6;
+        b.s.anims.timeScale = 1;
         this.refreshHud();
+        audioSfx('bossHit');
         this.cameras.main.shake(180, 0.01);
         this.burst(b.x, CFG.GROUND_Y - 36, 0xff5040, 12);
         this.popup(b.x, CFG.GROUND_Y - 74, b.hp > 0 ? 'HIT!' : 'K.O.!', '#ff5040');
         b.s.setTintFill(0xffffff);
         this.time.delayedCall(90, () => { if (b.s && b.s.active) b.s.clearTint(); });
-        if (b.hp <= 0) this.bossDefeated();
+        if (b.hp <= 0) { if (this.final) this.startEnding(); else this.bossDefeated(); }
     }
 
-    /* ---------- po wygranej: szał, auto, Fibi, odjazd ---------- */
+    /* ---------- auto Kamila (w finale parkuje w arenie i można je zniszczyć) ---------- */
+    carBox() {
+        const c = this.car, h = this.carHalf;
+        return { l: c.x - h * 0.92, r: c.x + h * 0.92, t: c.y - 56, b: c.y };
+    }
+    updateCar(dt, sword) {
+        const c = this.carObj;
+        if (!c) return;
+        c.cd = Math.max(0, c.cd - dt);
+        const car = this.car, h = this.carHalf;
+        if (!this.carBar) this.carBar = this.add.graphics().setDepth(9);
+        this.carBar.clear();
+        if (c.alive) {
+            if (sword && c.cd <= 0 && PlayScene.hit(sword, this.carBox())) this.hitCar();
+            const ratio = c.hp / c.max, v = Math.round(255 - (1 - ratio) * 120);
+            car.setTint(Phaser.Display.Color.GetColor(v, Math.round(v * 0.92), Math.round(v * 0.92)));   // im bardziej uszkodzone, tym ciemniejsze
+            const bx = Math.round(car.x - 20), by = Math.round(car.y - 70);                                // pasek życia auta
+            this.carBar.fillStyle(0x1e0c30, 0.85).fillRect(bx - 2, by - 2, 44, 8);
+            this.carBar.fillStyle(0xffd040, 1).fillRect(bx - 1, by - 1, 42, 6);
+            this.carBar.fillStyle(0x2a1030, 1).fillRect(bx, by, 40, 4);
+            this.carBar.fillStyle(ratio > 0.4 ? 0x40d060 : 0xe03030, 1).fillRect(bx, by, Math.max(1, Math.round(40 * ratio)), 4);
+        }
+        // dym i ogień z maski (im mniej HP, tym więcej); wrak dymi do końca
+        c.fx -= dt;
+        const fire = !c.alive || c.hp <= CFG.CAR_FIRE_HP, smoke = fire || c.hp <= CFG.CAR_SMOKE_HP;
+        if (smoke && c.fx <= 0) {
+            c.fx = fire ? 0.07 : 0.16;
+            this.smokePuff(car.x + h * 0.55 + Phaser.Math.Between(-6, 6), car.y - 26, fire);
+        }
+    }
+    smokePuff(x, y, fire) {
+        const d = this.add.image(x, y, 'dot').setDepth(8.8).setScale(fire ? 2 : 3);
+        d.setTint(Phaser.Utils.Array.GetRandom(fire ? [0xff8030, 0xffd040, 0xff5020, 0x222222] : [0x555555, 0x777777, 0x444444]));
+        this.tweens.add({ targets: d, y: y - 26 - Math.random() * 14, x: x + Phaser.Math.Between(-8, 8), alpha: 0, scale: fire ? 1 : 5, duration: fire ? 380 : 700,
+            onComplete: () => d.destroy() });
+    }
+    hitCar() {
+        const c = this.carObj, car = this.car;
+        c.hp -= 1; c.cd = CFG.CAR_HIT_COOLDOWN;
+        audioSfx('carHit');
+        this.tweens.add({ targets: car, x: car.x + 2, duration: 40, yoyo: true, repeat: 2 });
+        this.burst(this.a.x + this.facing * 30, car.y - 24, 0xffe080, 8);
+        this.cameras.main.shake(90, 0.004);
+        this.popup(car.x, car.y - 64, c.hp > 0 ? 'CRASH!' : 'BOOM!', '#ffb040');
+        if (c.hp <= 0) this.destroyCar(true);
+    }
+    destroyCar(withFury) {
+        const c = this.carObj, car = this.car, h = this.carHalf;
+        c.alive = false;
+        this.carBar.clear();
+        audioSfx('explosion');
+        this.cameras.main.shake(520, 0.022);
+        this.cameras.main.flash(220, 255, 220, 140);
+        const cx = car.x, cy = car.y - 28;
+        [[0xffffff, 10], [0xffd040, 22], [0xff7020, 26], [0x333333, 14]].forEach(([col, n]) => {
+            for (let i = 0; i < n; i++) {                                // odłamki i kula ognia
+                const p = this.add.image(cx + Phaser.Math.Between(-h * 0.5, h * 0.5), cy + Phaser.Math.Between(-12, 8), 'dot').setTint(col).setDepth(9).setScale(Math.random() < 0.4 ? 3 : 2);
+                const ang = Math.random() * Math.PI * 2, r = 26 + Math.random() * 70;
+                this.tweens.add({ targets: p, x: p.x + Math.cos(ang) * r, y: p.y + Math.sin(ang) * r * 0.8 - 20 + 30 * Math.random(), alpha: 0, scale: 0.4,
+                    duration: 500 + Math.random() * 600, ease: 'Quad.out', onComplete: () => p.destroy() });
+            }
+        });
+        const ring = this.add.circle(cx, cy, 8, 0xffe8a0, 0.9).setDepth(9).setStrokeStyle(3, 0xff8020);
+        this.tweens.add({ targets: ring, scale: 9, alpha: 0, duration: 450, onComplete: () => ring.destroy() });
+        // wrak: sczerniały, przysiadł
+        car.anims.stop();
+        car.setTexture(this.carInfo.emptyKeys[0]).setTint(0x2c2824).setScale(1, 0.86);
+        // wybuch rani, jeśli stoisz za blisko (i ogłusza Kamila)
+        if (CFG.CAR_BLAST_HURTS) {
+            const r = CFG.CAR_BLAST_RADIUS, bx = this.carBox();
+            const blast = { l: bx.l - r, r: bx.r + r, t: bx.t - r, b: bx.b + 4 };
+            if (PlayScene.hit(this.arekBox(), blast)) this.hurt();
+            const b = this.boss;
+            if (b && b.hp > 0 && PlayScene.hit(this.kamilBox(), blast)) { b.knock = Math.sign(b.x - cx || 1) * 220; }
+        }
+        if (CFG.CAR_DROPS_HEART) this.spawnHeart(cx - h * 0.3);
+        if (withFury && this.boss && this.boss.hp > 0) this.time.delayedCall(450, () => this.enterFury());
+    }
+    enterFury() {
+        const b = this.boss;
+        if (!b || b.hp <= 0 || b.fury || this.mode !== 'boss') return;
+        b.fury = true;
+        b.state = 'idle'; b.stateT = 0.4; b.stun = 1.0; b.knock = 0;
+        b.spellCd = 1.2;
+        if (b.cross) { b.cross.destroy(); b.cross = null; }
+        if (b.glow) { b.glow.destroy(); b.glow = null; }
+        this.bubbleAt(b.x, CFG.GROUND_Y - 84, '!!!', '#ff3030');
+        this.showBanner('FURY!', 'KAMIL IS FURIOUS');
+        this.cameras.main.shake(300, 0.012);
+        audioPlay('fury');
+    }
+    updateHearts(body) {
+        for (let i = this.hearts.length - 1; i >= 0; i--) {
+            const h = this.hearts[i];
+            if (PlayScene.hit(body, { l: h.wx - h.hw, r: h.wx + h.hw, t: h.y - 8, b: h.y + 8 })) {
+                this.lives = Math.min(CFG.MAX_LIVES, this.lives + 1);
+                this.popup(h.wx, h.y - 10, '+1 LIFE', '#ff7080');
+                this.burst(h.wx, h.y, 0xff4060);
+                audioSfx('heart');
+                h.s.destroy(); this.tweens.killTweensOf(h.s); this.hearts.splice(i, 1);
+                this.refreshHud();
+            } else if (h.wx < this.camX - 40) { this.tweens.killTweensOf(h.s); h.s.destroy(); this.hearts.splice(i, 1); }
+        }
+    }
+
+    /* ---------- po wygranej z pierwszym bossem: szał, auto, Fibi, odjazd ---------- */
     bossDefeated() {
         const b = this.boss;
         this.mode = 'bossend';
         this.invuln = 99;
+        audioStop(0.3);
         this.crosses.forEach(c => { c.s.destroy(); c.glow.destroy(); });
         this.crosses = [];
         b.rage = true; b.stun = 99; b.hp = 0;
@@ -1614,12 +1909,13 @@ class PlayScene extends Phaser.Scene {
             targets: b.s, y: CFG.GROUND_Y - 36, alpha: 0, duration: 320, ease: 'Quad.out',
             onComplete: () => {
                 b.s.destroy();
+                car.setTexture(this.carInfo.keys[0]);                    // znowu Kamil za kierownicą
                 this.tweens.add({ targets: car, y: car.y - 2, duration: 70, yoyo: true, repeat: 3 });   // auto buja
                 this.cameras.main.shake(150, 0.004);
                 this.time.delayedCall(500, () => this.carGrabsFibi());
             },
         });
-        this.bossHud.forEach(o => o.setVisible(false));
+        this.setBossHud(false);
     }
     carGrabsFibi() {
         const car = this.car, fibi = this.fibi;
@@ -1652,6 +1948,8 @@ class PlayScene extends Phaser.Scene {
         this.level = 2;
         this.L = this.levelParams(2);
         this.mode = 'run';
+        this.final = false;
+        this.bossReached = false;
         this.boss = null;
         this.score = 0;
         this.scrollCur = 0;                 // ekran rusza płynnie
@@ -1661,24 +1959,136 @@ class PlayScene extends Phaser.Scene {
         this.sinceHeart = 0;
         this.refreshHud();
         this.showBanner('LEVEL 2', `REACH ${this.L.goal} POINTS`);
+        audioPlay('level2');
+    }
+
+    /* =================================================================
+       ZAKOŃCZENIE: Kamil pokonany -> miecz w górę -> piorun -> zbroja spada (wraca casual Arek)
+       -> WYGRAŁEŚ! -> Arek odchodzi w lewo -> KONIEC GRY
+       ================================================================= */
+    startEnding() {
+        const b = this.boss;
+        this.mode = 'ending';
+        this.invuln = 99;
+        this.endVx = 0; this.endTarget = null; this.arekDY = 0; this.arekManual = false;
+        audioStop(0.25);
+        this.crosses.forEach(c => { c.s.destroy(); c.glow.destroy(); });
+        this.crosses = [];
+        this.setBossHud(false);
+        if (this.carBar) this.carBar.clear();
+        b.hp = 0; b.stun = 99; b.state = 'idle';
+        b.s.anims.stop(); b.s.setTexture('kamil_stand').setTint(0xffffff).setAlpha(1);
+        if (b.cross) { b.cross.destroy(); b.cross = null; }
+        if (b.glow) { b.glow.destroy(); b.glow = null; }
+        // Kamil pada i rozsypuje się w gwiazdki
+        this.tweens.add({ targets: b.s, angle: -b.face * 85, duration: 500, ease: 'Quad.in' });
+        this.time.delayedCall(900, () => {
+            this.sparkle(b.x, CFG.GROUND_Y - 10, 26, [0xffffff, 0xffd040, 0xff6040]);
+            this.tweens.add({ targets: b.s, alpha: 0, duration: 400, onComplete: () => b.s.destroy() });
+        });
+        if (this.carObj && this.carObj.alive) this.time.delayedCall(500, () => this.destroyCar(false));
+        this.time.delayedCall(2400, () => {                             // Arek idzie na środek areny
+            this.endTarget = this.camX + W * 0.42;
+        });
+    }
+    endingRaise() {                                                      // Arek unosi miecz
+        const a = this.a, arek = this.arek;
+        this.arekManual = true; this.pose = 'manual';
+        this.facing = 1;
+        arek.anims.stop(); arek.setTexture('arek_jump').setFlipX(false);
+        this.tweens.add({ targets: this, arekDY: -10, duration: 600, ease: 'Sine.out' });
+        this.endDim = this.add.rectangle(0, 0, W, H, 0x0a0620, 1).setOrigin(0).setScrollFactor(0).setDepth(9.4).setAlpha(0);
+        this.tweens.add({ targets: this.endDim, alpha: CFG.ENDING_DARKEN, duration: 800 });
+        this.boltG = this.add.graphics().setDepth(18);
+        this.time.delayedCall(1500, () => this.endingStrike());
+    }
+    endingStrike() {
+        const a = this.a, arek = this.arek;
+        const tip = { x: a.x + 10, y: a.y - 66 + this.arekDY };
+        this.cameras.main.flash(300, 255, 255, 255);
+        this.cameras.main.shake(500, 0.012);
+        audioSfx('lightning');
+        let n = 0;
+        this.time.addEvent({ delay: 60, repeat: 9, callback: () => { drawLightning(this.boltG, tip.x, tip.y); n++; if (n >= 10) this.boltG.clear(); } });
+        this.sparkle(tip.x, tip.y, 16, [0xffffff, 0xbfe0ff, 0x6a8cff]);
+        // odwrotna transformacja: biała sylwetka miga między zbroją a ubraniem
+        arek.setTintFill(0xffffff);
+        let k = 0;
+        const flick = this.time.addEvent({ delay: 60, repeat: 11, callback: () => {
+            k++;
+            arek.setTexture(k % 2 ? 'arek_casual_stand' : 'arek_jump').setTintFill(0xffffff);
+            if (Math.random() < 0.8) this.sparkle(a.x + Phaser.Math.Between(-14, 14), a.y - 30 + Phaser.Math.Between(-26, 26), 2, [0xffffff, 0xffd040, 0xfff0a0]);
+        } });
+        this.time.delayedCall(60 * 13, () => {                          // zbroja spada
+            flick.remove();
+            arek.setTexture('arek_casual_stand').clearTint().setScale(1.15);
+            this.tweens.add({ targets: arek, scale: 1, duration: 260, ease: 'Back.out' });
+            this.cameras.main.flash(240, 255, 240, 180);
+            [[0xffd040, 20], [0xc08020, 14], [0xff4040, 8], [0xa0a0b0, 6]].forEach(([col, cnt]) => {
+                for (let i = 0; i < cnt; i++) {
+                    const p = this.add.image(a.x + Phaser.Math.Between(-8, 8), a.y - 28 + Phaser.Math.Between(-20, 20), 'dot').setTint(col).setDepth(17).setScale(Math.random() < 0.5 ? 3 : 2);
+                    const vx = Phaser.Math.Between(-60, 60);
+                    this.tweens.add({ targets: p, x: p.x + vx, y: a.y - 4 + Phaser.Math.Between(-2, 2), duration: 500 + Math.random() * 300, ease: 'Bounce.out',
+                        onComplete: () => this.tweens.add({ targets: p, alpha: 0, delay: 600, duration: 500, onComplete: () => p.destroy() }) });
+                }
+            });
+            this.tweens.add({ targets: this.endDim, alpha: 0, duration: 700 });
+            this.tweens.add({ targets: this, arekDY: 0, duration: 300, ease: 'Quad.in' });
+            this.time.delayedCall(700, () => this.endingWin());
+        });
+    }
+    endingWin() {
+        audioPlay('victory');
+        const t = pxText(this, W / 2, 62, 'WYGRAŁEŚ!', { scale: 7, color: '#ffd040', shadow: '#8c1e14' }).setScrollFactor(0).setDepth(25).setScale(0.2);
+        this.tweens.add({ targets: t, scale: 1, duration: 500, ease: 'Back.out' });
+        this.tweens.add({ targets: t, y: 66, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut', delay: 600 });
+        this.winTxt = t;
+        for (let i = 0; i < 4; i++) this.time.delayedCall(i * 350, () => this.sparkle(Phaser.Math.Between(120, W - 120), Phaser.Math.Between(60, 110) + this.cameras.main.scrollY, 14, [0xffd040, 0xffffff, 0xff7040]));
+        this.time.delayedCall(2600, () => this.endingWalkOff());
+    }
+    endingWalkOff() {                                                    // Arek odchodzi w lewo (z Fibim, który do niego dobiega)
+        const arek = this.arek;
+        this.facing = -1;
+        arek.setFlipX(true).play('casual_walk');
+        arek.anims.timeScale = CFG.ENDING_WALK_SPEED / CFG.INTRO_WALK_SPEED;
+        this.endVx = -CFG.ENDING_WALK_SPEED;
+        if (CFG.ENDING_FIBI) {
+            const dog = this.endDog = this.add.sprite(this.camX + W + 30, CFG.GROUND_Y + 1, 'fibi_stand').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
+            dog.play('dog_run');
+        }
+    }
+    updateEnding(dt) {
+        const a = this.a;
+        if (this.endTarget !== null && this.endTarget !== undefined) {
+            const d = this.endTarget - a.x;
+            if (Math.abs(d) <= 3) { a.x = this.endTarget; this.endTarget = null; this.endVx = 0; this.facing = 1; this.heroMoving = false; this.endingRaise(); }
+            else { this.endVx = Math.sign(d) * 95; this.facing = Math.sign(d); this.heroMoving = true; }
+        }
+        a.x += this.endVx * dt;
+        const dog = this.endDog;
+        if (dog && dog.active) {
+            const follow = a.x + 44;
+            if (dog.x > follow) { dog.x = Math.max(follow, dog.x - 170 * dt); if (dog.x <= follow + 0.5) dog.play('dog_walk'); }
+            else dog.x += this.endVx * dt;
+            dog.y = CFG.GROUND_Y + 1;
+        }
+        if (this.endVx < 0 && a.x < this.camX - 50 && (!dog || dog.x < this.camX - 20) && !this.endDone) {
+            this.endDone = true;
+            this.time.delayedCall(900, () => this.showFinal());
+        }
     }
 
     /* ---------- koniec gry ---------- */
+    retryData() { return this.bossReached ? { level: this.level, arena: true } : undefined; }
+    restartLevel() { this.scene.restart(this.retryData()); }
     gameOver() {
         this.state = 'over';
+        audioPlay('gameover');
         this.arek.anims.stop();
         this.arek.setTexture('arek_jump').setTint(0xff6060).setAlpha(1);
         this.slash.setVisible(false);
         this.tweens.add({ targets: this.arek, y: this.arek.y - 24, angle: 90, alpha: 0.7, duration: 500, ease: 'Quad.out' });
         this.showEnd('GAME OVER', '#ff4040', '#4a0808', 'TRY AGAIN');
-    }
-    win() {
-        this.state = 'win';
-        this.arek.anims.stop();
-        this.arek.setTexture('arek_jump').setAlpha(1);
-        this.slash.setVisible(false);
-        this.tweens.add({ targets: this.arek, y: this.arek.y - 30, duration: 300, yoyo: true, repeat: 2 });
-        this.showEnd('YOU WIN!', '#ffd040', '#8c1e14', 'PLAY AGAIN');
     }
     showEnd(title, color, shadow, label) {
         this.endReady = false;
@@ -1686,16 +2096,34 @@ class PlayScene extends Phaser.Scene {
         const dim = this.add.rectangle(0, 0, W, H, 0x0c0818, 0.62).setOrigin(0).setScrollFactor(0).setDepth(d).setAlpha(0);
         this.tweens.add({ targets: dim, alpha: 1, duration: 300 });
         const t = pxText(this, W / 2, 56, title, { scale: 6, color, shadow }).setScrollFactor(0).setDepth(d + 1);
-        const sub = this.state === 'win' ? `LEVEL ${this.level} COMPLETE` : (this.mode === 'boss' ? 'KS. KAMIL WINS THIS ROUND' : `REACH ${this.L.goal} POINTS TO WIN`);
+        const sub = this.mode === 'boss' ? (this.final ? 'KS. KAMIL WINS... AGAIN' : 'KS. KAMIL WINS THIS ROUND') : `REACH ${this.L.goal} POINTS TO WIN`;
         pxText(this, W / 2, 112, sub, { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setScrollFactor(0).setDepth(d + 1);
         pxText(this, W / 2, 140, this.scoreStr(), { scale: 3, color: '#ffd040', shadow: '#3a1008' }).setScrollFactor(0).setDepth(d + 1);
-        const btn = makeButton(this, W / 2, 190, 220, 28, label, () => { if (this.endReady) this.scene.restart(); }, d + 1);
+        const btn = makeButton(this, W / 2, 190, 220, 28, label, () => { if (this.endReady) this.restartLevel(); }, d + 1);
         const hint = IS_TOUCH ? 'TAP THE BUTTON' : 'SPACE OR ENTER   ESC = MENU';
         pxText(this, W / 2, 232, hint, { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setScrollFactor(0).setDepth(d + 1);
         // krótka blokada, żeby wciśnięta spacja (skok) nie wystartowała od razu nowej gry
         this.time.delayedCall(700, () => { this.endReady = true; });
         this.endObjects = [dim, t, btn];
     }
+    /** Ekran KONIEC GRY po zakończeniu fabuły. */
+    showFinal() {
+        this.state = 'final';
+        this.endReady = false;
+        const d = 20;
+        const dim = this.add.rectangle(0, 0, W, H, 0x0c0818, 0.72).setOrigin(0).setScrollFactor(0).setDepth(d).setAlpha(0);
+        this.tweens.add({ targets: dim, alpha: 1, duration: 600 });
+        if (this.winTxt) this.winTxt.destroy();
+        pxText(this, W / 2, 50, 'KONIEC GRY', { scale: 7, color: '#ffd040', shadow: '#8c1e14' }).setScrollFactor(0).setDepth(d + 1);
+        pxText(this, W / 2, 108, 'DZIĘKI ZA GRĘ!', { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setScrollFactor(0).setDepth(d + 1);
+        pxText(this, W / 2, 132, 'FIBI RUN', { scale: 2, color: '#f0d8a0', shadow: '#2a1608' }).setScrollFactor(0).setDepth(d + 1);
+        makeButton(this, W / 2, 168, 220, 26, 'MENU', () => { if (this.endReady) this.toMenu(); }, d + 1);
+        makeButton(this, W / 2, 208, 220, 26, 'PLAY AGAIN', () => { if (this.endReady) this.scene.restart(); }, d + 1);
+        const hint = IS_TOUCH ? 'TAP A BUTTON' : 'ENTER = MENU   R = PLAY AGAIN';
+        pxText(this, W / 2, 252, hint, { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setScrollFactor(0).setDepth(d + 1);
+        this.time.delayedCall(700, () => { this.endReady = true; });
+    }
+    toMenu() { audioStop(0.2); this.scene.start('Title'); }
 }
 
 /* =====================================================================
