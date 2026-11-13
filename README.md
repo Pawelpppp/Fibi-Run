@@ -16,6 +16,15 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – reklama/gra 16-bit
 
 ---
 
+## Ekran powitalny
+
+Pierwszy ekran po uruchomieniu gry:
+- Na środku duży napis **Arek Run**.
+- Twarz głównego bohatera z assetów (`assets/portraits/face_portrait.png`).
+- Pod spodem przycisk **START NEW GAME**, który rozpoczyna poziom 1.
+
+---
+
 ## Poziom 1 – zasady
 
 ### Cel
@@ -99,14 +108,15 @@ Wszystkie grafiki mają transparentne tło i są w stylu 16-bit.
 ## Plan projektu (roadmap)
 
 1. **README** – założenia gry (ten plik)
-2. Scena Phaser: przesuwający się ekran, szutrowa droga, bieg Arka w prawo (szybciej / wolniej), blokada krawędzi ekranu
-3. Skok + beczki + punkty za przeskok (+30)
-4. Życia, utrata życia przy dotknięciu, ekran końca gry
-5. Potworek + atak mieczem
-6. Serduszko (+1 życie)
-7. Tło 16-bit z mijanymi elementami
-8. UI: licznik punktów i żyć, ekran wygranej po 1000 pkt
-9. Sterowanie dotykowe na telefonie
+2. Ekran powitalny: napis Arek Run, twarz bohatera, START NEW GAME
+3. Scena Phaser: przesuwający się ekran, szutrowa droga, bieg Arka w prawo (szybciej / wolniej), blokada krawędzi ekranu
+4. Skok + beczki + punkty za przeskok (+30)
+5. Życia, utrata życia przy dotknięciu, ekran końca gry
+6. Potworek + atak mieczem
+7. Serduszko (+1 życie)
+8. Tło 16-bit z mijanymi elementami
+9. UI: licznik punktów i żyć, ekran wygranej po 1000 pkt
+10. Sterowanie dotykowe na telefonie
 
 ### Na później
 - Mówiący pies i dialogi z portretami
