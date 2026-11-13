@@ -23,7 +23,7 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 2. Arek wyciąga zza pleców miecz i unosi go nad głowę, z nieba uderza **piorun**, następuje **transformacja** w złotą zbroję i Arek biegnie za psem – zaczyna się poziom 1.
 3. Po zdobyciu 1000 pkt ekran gwałtownie przesuwa się do areny, gdzie czeka Fibi. Nadjeżdża ksiądz Kamil i zaczyna się **walka z bossem**.
 4. Po pokonaniu Kamila ten w szale wsiada do auta, **zabiera Fibi i odjeżdża**. Arek rusza w pościg – **poziom 2** (3000 pkt, nowe potworki).
-5. Na końcu poziomu 2 Kamil wraca swoim autem – **finałowa walka**. Po jego pokonaniu gracz wygrywa i gra się kończy.
+5. Na końcu poziomu 2 Kamil wraca swoim autem – **finałowa walka**. Po jego pokonaniu Arek unosi miecz, trafia go piorun, zdejmuje zbroję, pojawia się napis WYGRAŁEŚ!, Arek odchodzi w lewo za ekran – koniec gry.
 
 ### Postacie
 | Postać | Rola | Opis |
@@ -68,7 +68,13 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 2. Nadjeżdża ksiądz Kamil swoim samochodem i zaczyna się walka.
 3. Kamil ma **więcej żyć** niż w pierwszej walce i **więcej czarów** (częściej rzuca krzyżyki).
 4. **Auto Kamila można zniszczyć** (np. mieczem). Po zniszczeniu auta Kamil atakuje **jeszcze zajadlej**.
-5. Po pokonaniu Kamila gracz **wygrywa** – ekran końca gry.
+5. Po pokonaniu Kamila – **zakończenie** (scenka, sterowanie zablokowane):
+   1. Arek unosi miecz nad głowę.
+   2. Z nieba uderza w niego **piorun**.
+   3. Arek **zdejmuje zbroję** (odwrotna transformacja – wraca wersja casual).
+   4. Pojawia się napis **WYGRAŁEŚ!**
+   5. Arek odchodzi **w lewo** za ekran.
+   6. Ekran **KONIEC GRY**.
 
 ## Sterowanie
 
@@ -126,7 +132,7 @@ Szczegóły: wiki → *Assety i grafiki*.
 
 **Zrobione:** ekran tytułowy, intro z transformacją, poziom 1, boss Kamil, poziom 2, sterowanie dotykowe, animacja biegu.
 
-**Do zrobienia:** finałowa walka z księdzem Kamilem na końcu poziomu 2 (więcej żyć i czarów, niszczenie auta, ekran końca gry).
+**Do zrobienia:** finałowa walka z księdzem Kamilem na końcu poziomu 2 (więcej żyć i czarów, niszczenie auta, scenka zakończenia z piorunem, zdjęciem zbroi, napisem WYGRAŁEŚ! i ekranem KONIEC GRY).
 
 **Pomysły na później**
 - Dźwięk i soundtrack chiptune
