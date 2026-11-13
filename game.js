@@ -303,33 +303,6 @@ function makeTextures(scene) {
         '...ooo..ooo...',
     ], monPal, 2);
 
-    /* --- pies 14x10 (x2 = 28x20), placeholder: mały czarno-brązowy, zwrócony w PRAWO --- */
-    const dogPal = { k: '#1a1410', n: '#9a5a24', l: '#c98a44', w: '#ffffff' };
-    artTex(scene, 'dog_1', [
-        '.k.......kk...',
-        '.kk.....kkkk..',
-        '..kkkkkkkkkkn.',
-        '..kkkkkkkwkknl',
-        '..kkkkkkkkkknn',
-        '..kknnnnnnkkk.',
-        '...nnnnnnnn...',
-        '...nn....nn...',
-        '...kk....kk...',
-        '..kkk...kkk...',
-    ], dogPal, 2);
-    artTex(scene, 'dog_2', [
-        '.k.......kk...',
-        '.kk.....kkkk..',
-        '..kkkkkkkkkkn.',
-        '..kkkkkkkwkknl',
-        '..kkkkkkkkkknn',
-        '..kknnnnnnkkk.',
-        '...nnnnnnnn...',
-        '....nn..nn....',
-        '....kk..kk....',
-        '...kkk.kkk....',
-    ], dogPal, 2);
-
     /* --- serduszko 9x8 (x2) --- */
     artTex(scene, 'heart', [
         '.ooo.ooo.',
@@ -458,7 +431,7 @@ class BootScene extends Phaser.Scene {
     constructor() { super('Boot'); }
     preload() {
         this.cameras.main.setBackgroundColor('#0c0818');
-        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'face', 'car_1', 'car_2'];
+        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'face', 'car_1', 'car_2', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand'];
         names.forEach(n => {
             // data-URI (assets/game/assets.js) działa też z file://; fallback: zwykłe pliki
             const src = (window.AREK_ASSETS && window.AREK_ASSETS[n]) || `assets/game/${n}.png`;
@@ -472,8 +445,8 @@ class BootScene extends Phaser.Scene {
             frames: ['arek_run_1', 'arek_run_2', 'arek_run_3'].map(key => ({ key })),
         });
         this.anims.create({ key: 'car_drive', frameRate: 8, repeat: -1, frames: [{ key: 'car_1' }, { key: 'car_2' }] });
-        this.anims.create({ key: 'dog_walk', frameRate: 5, repeat: -1, frames: [{ key: 'dog_1' }, { key: 'dog_2' }] });
-        this.anims.create({ key: 'dog_run', frameRate: 14, repeat: -1, frames: [{ key: 'dog_1' }, { key: 'dog_2' }] });
+        this.anims.create({ key: 'dog_walk', frameRate: 4, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
+        this.anims.create({ key: 'dog_run', frameRate: 12, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
         this.anims.create({ key: 'monster_walk', frameRate: 4, repeat: -1, frames: [{ key: 'monster_1' }, { key: 'monster_2' }] });
         this.scene.start('Title');
     }
@@ -546,7 +519,7 @@ class IntroScene extends Phaser.Scene {
         this.arek = this.add.sprite(ax, gy, 'arek_run_1').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
         this.arek.play('run');
         this.arek.anims.timeScale = 0.4;       // powolny spacer
-        this.dog = this.add.sprite(ax + CFG.INTRO_DOG_DIST, gy + 1, 'dog_1').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
+        this.dog = this.add.sprite(ax + CFG.INTRO_DOG_DIST, gy + 1, 'fibi_stand').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
         this.dog.play('dog_walk');
         // auto zmniejszone wygładzonym skalowaniem do nowej tekstury (ostre piksele przy skali 1:1)
         const cs = CFG.INTRO_CAR_SCALE, sf = (n) => {
@@ -611,8 +584,8 @@ class IntroScene extends Phaser.Scene {
             dog.y = gy + 1 - (Math.floor(this.t * 5) % 2);
             if (car.visible && carFront > dog.x - 70) {          // auto tuż obok psa -> pies się płoszy
                 this.setPhase('scare');
-                dog.anims.stop(); dog.setTexture('dog_1');
-                this.bubble(dog.x, dog.y - 28, '!', '#ff5050');
+                dog.anims.stop(); dog.setTexture('fibi_stand');
+                this.bubble(dog.x, dog.y - 36, '!', '#ff5050');
                 this.tweens.add({ targets: dog, y: gy + 1 - 12, duration: 120, yoyo: true, repeat: 1 });
             }
         } else if (this.phase === 'scare') {
@@ -621,7 +594,7 @@ class IntroScene extends Phaser.Scene {
                 this.setPhase('turn');
                 this.leashState = 'hang';
                 this.leashSnapT = 0;
-                this.burst(dog.x - 8, dog.y - 12, 0xe0c080);
+                this.burst(dog.x - 8, dog.y - 17, 0xe0c080);
                 dog.setFlipX(false); dog.play('dog_run'); dog.y = gy + 1;
                 this.dogVx = 40;
                 arek.anims.stop();                                // Arek staje
@@ -680,7 +653,7 @@ class IntroScene extends Phaser.Scene {
             }
         };
         if (this.leashState === 'taut') {
-            const cx = Math.round(dog.x - 11 + (dog.flipX ? 0 : 22)), cy = Math.round(dog.y - 12);
+            const cx = Math.round(dog.x + (dog.flipX ? -9 : 9)), cy = Math.round(dog.y - 17);
             line(hx, hy, cx, cy, this.phase === 'scare' ? 1 : 7);
         } else {
             this.leashSnapT = (this.leashSnapT || 0) + dt;

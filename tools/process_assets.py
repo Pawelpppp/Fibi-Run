@@ -28,6 +28,8 @@ OUT = os.path.join(ROOT, 'assets', 'game')
 
 ARCHIVE_FRAMES = ['run_1', 'run_2', 'run_3', 'jump', 'attack']
 ARCHIVE_DIR = os.path.join(ROOT, 'assets', 'sprites')
+DOG_H_GAME = 28        # wysokość Fibi w grze (px) - wyraźnie mniejsza od Arka (64 px)
+DOG_FRAMES = ['fibi_walk_1', 'fibi_walk_2', 'fibi_stand']
 FACE_SRC = os.path.join(ROOT, 'assets', 'portraits', 'face_portrait.png')
 
 FRAME_H_GAME = 64      # wysokość klatki Arka w grze (px) po przeskalowaniu
@@ -154,7 +156,34 @@ def main():
     quantize([(rgb, mask)], 64)[0].save(os.path.join(OUT, 'face.png'))
     print('face', size)
     copy_car()
+    process_dog()
     write_bundle()
+
+
+def process_dog():
+    """Pies Fibi (intro): sprite'y RGBA zwrócone w prawo -> assets/game/fibi_*.png.
+    Wspólna skala (wysokość klatki 72 px -> DOG_H_GAME), stopy na dole, wspólna paleta.
+    Jeśli plik ma szachownicę zamiast alfy (RGB), usuwamy ją jak w sprite'ach Arka."""
+    cut = {}
+    for n in DOG_FRAMES:
+        im = Image.open(os.path.join(ARCHIVE_DIR, n + '.png'))
+        im = im.convert('RGBA') if im.mode == 'RGBA' and (np.array(im)[..., 3] < 255).any() else remove_checkerboard(im)
+        cut[n] = im.crop(bbox(im))
+    scale = DOG_H_GAME / max(c.height for c in cut.values())
+    walk_w = max(round(cut[n].width * scale) for n in DOG_FRAMES[:2])
+    items = []
+    for n in DOG_FRAMES:
+        c = cut[n]
+        sw, sh = max(1, round(c.width * scale)), max(1, round(c.height * scale))
+        rgb, mask = to_game(c, (sw, sh))
+        fw = walk_w if n != 'fibi_stand' else sw
+        frame = Image.new('RGB', (fw, DOG_H_GAME)); fm = np.zeros((DOG_H_GAME, fw), bool)
+        x0, y0 = (fw - sw) // 2, DOG_H_GAME - sh
+        frame.paste(rgb, (x0, y0)); fm[y0:y0 + sh, x0:x0 + sw] = mask
+        items.append((frame, fm))
+    for n, im in zip(DOG_FRAMES, quantize(items, 40)):
+        im.save(os.path.join(OUT, n + '.png'))
+    print('dog frames', [im.size for _, im in zip(DOG_FRAMES, [Image.open(os.path.join(OUT, n + '.png')) for n in DOG_FRAMES])])
 
 
 def copy_car():

@@ -54,7 +54,7 @@ Jak to działa w grze (`IntroScene` w `game.js`, czasy i prędkości w `CFG` –
 Grafiki:
 - Ksiądz Kamil – gotowe: `assets/portraits/ksiadz_kamil_portrait_front.png` (portret do dialogów), `assets/sprites/ksiadz_kamil_stand.png`, `ksiadz_kamil_walk_1.png`, `ksiadz_kamil_walk_2.png` (wersje `_x4` – 4x większe).
 - Samochód z księdzem Kamilem – gotowe: `assets/sprites/ksiadz_kamil_car.png`, `ksiadz_kamil_car_1.png`, `ksiadz_kamil_car_2.png` (219×100, czerwony hatchback zwrócony w prawo; `_1` i `_2` to animacja jazdy; wersje `_x4`). W grze kopie w `assets/game/car_1.png`, `car_2.png` (skrypt `tools/process_assets.py`).
-- Pies (mały, czarno-brązowy) – **placeholder** rysowany w kodzie (`game.js`, 2 klatki chodu); docelowa grafika do zrobienia.
+- Pies **Fibi** – gotowe: `assets/sprites/fibi_stand.png`, `fibi_walk_1.png`, `fibi_walk_2.png` (+ portret `assets/portraits/fibi_portrait_front.png`, na razie niewykorzystany). W intro użyte klatki chodu (spacer i ucieczka, szybciej) oraz „stój” (moment spłoszenia); w grze przetworzone do wysokości 28 px: `assets/game/fibi_*.png` (`tools/process_assets.py`).
 
 ---
 
@@ -138,6 +138,7 @@ assets/
 ├── game/                             # przetworzone pod grę (tools/process_assets.py)
 │   ├── arek_run_1..3.png, arek_jump.png, arek_attack.png
 │   ├── car_1.png, car_2.png
+│   ├── fibi_walk_1.png, fibi_walk_2.png, fibi_stand.png
 │   ├── face.png
 │   └── assets.js                     # te same PNG jako data-URI (działa z file://)
 └── portraits/
