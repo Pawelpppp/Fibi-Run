@@ -109,13 +109,18 @@ game.js                 # cała gra: CFG, tekstury, sceny Boot/Title/Intro/Play
 tools/process_assets.py # przetwarzanie oryginalnych grafik -> assets/game + assets.js
 assets/
 ├── sprites/            # oryginały (Arek, Kamil, auto, Fibi, casual) + podglądy *_x4.png
+│   │                   #   nowe klatki animacji (#3, jeszcze niepodpięte w grze):
+│   ├── arek_casual_run6_1..6.png   # casual: bieg, 6 klatek (111×154 … 68×159; wys. ≤160)
+│   ├── arek_casual_jump_1..5.png   # casual: skok 5 faz (przysiad, wznoszenie, szczyt, opadanie, lądowanie)
+│   ├── arek_run6_1..6.png          # zbroja: bieg, 6 klatek (wys. 129–160)
+│   └── arek_jump_1..5.png          # zbroja: skok 5 faz (wys. 126–207, z uniesionym mieczem)
 ├── portraits/          # portrety do dialogów (Fibi, Kamil, ...)
 └── game/               # przetworzone sprite'y do gry + assets.js (data-URI)
 ```
 
 ## Assety i placeholdery
 
-**Gotowe (własne grafiki):** Arek w zbroi (bieg 1–3, skok, atak), Arek casual (bieg 1–3, stoi), ksiądz Kamil (stoi, chód 1–2, portret), samochód Kamila (2 klatki jazdy), Fibi (stoi, chód 1–2, portret).
+**Gotowe (własne grafiki):** Arek w zbroi (bieg 1–3, skok, atak; nowe: bieg 6 klatek `arek_run6_*`, skok 5 faz `arek_jump_*`), Arek casual (bieg 1–3, stoi; nowe: bieg 6 klatek `arek_casual_run6_*`, skok 5 faz `arek_casual_jump_*`), ksiądz Kamil (stoi, chód 1–2, portret), samochód Kamila (2 klatki jazdy), Fibi (stoi, chód 1–2, portret).
 
 **Placeholdery (rysowane w kodzie, do podmiany na docelowe grafiki):** beczka, potworki (ghoul, imp, nietoperz), krzyżyk-czar, serduszka, droga, tło (zachód słońca, wzgórza, drzewa), przyciski dotykowe, miecz i błyskawica w intro (w grafikach casual nie ma pozy z mieczem). Kamil w aucie ma „kierowcę” na sprite'cie auta także po wyjściu z niego.
 
