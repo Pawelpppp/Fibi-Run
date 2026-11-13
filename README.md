@@ -36,7 +36,7 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 
 | Etap | Cel | Najważniejsze |
 |------|-----|---------------|
-| Ekran tytułowy | **FIBI [portret] RUN**, przycisk START NEW GAME (klik / tap / Spacja / Enter) | po starcie leci intro (Spacja / tap pomija) |
+| Ekran tytułowy | **FIBI [portret] RUN**, przyciski START NEW GAME i **WYNIKI** (Spacja / Enter startuje) | po starcie leci intro (Spacja / tap pomija); WYNIKI otwiera tablicę |
 | Intro | ok. 11 s bez dialogów | spacer, auto Kamila, ucieczka psa, miecz, piorun, transformacja |
 | Poziom 1 | **1000 pkt** | beczki (też podwójne), zielony potworek, serduszka |
 | Boss: ksiądz Kamil | 3 trafienia w Kamila | miecz lub skok na głowę, czary-krzyżyki |
@@ -111,11 +111,38 @@ Cały dźwięk jest **generowany w przeglądarce** (Web Audio API, plik `audio.j
 
 W arenie bossa → / ← poruszają Arka swobodnie po ekranie (ekran się nie przewija).
 
+## Tablica wyników
+
+Po **GAME OVER** i po ekranie **KONIEC GRY** (wygrana) gracz może wpisać **nick** (maks. 12 znaków, wielkie litery, cyfry, spacja, myślnik i polskie znaki). Zapis: nick, **łączna liczba punktów** z całej rozgrywki (poziom 1 + poziom 2) oraz **czas od kliknięcia START** do końca gry, w formacie `mm:ss`. Czas obejmuje intro i ewentualne „TRY AGAIN” w tej samej sesji (od tego samego START). „PLAY AGAIN” po wygranej zaczyna nowy pomiar.
+
+Podczas gry (i w intro) w HUD widać licznik czasu. Tablicę można też otworzyć z menu tytułowego przyciskiem **WYNIKI** (ranga, nick, punkty, czas). Sortowanie: więcej punktów, przy remisie krótszy czas. Lokalnie trzymane jest do 20 wyników (`localStorage`, klucz `fibi_leaderboard`).
+
+Domyślnie tablica jest **tylko w tej przeglądarce**. Wspólna tablica wszystkich graczy wymaga darmowego projektu [Supabase](https://supabase.com) – patrz kroki poniżej. Gdy klucz jest ustawiony, gra zapisuje i pobiera wyniki przez REST (`/rest/v1/scores`); przy błędzie sieci wynik zostaje lokalnie.
+
+### Jak włączyć wspólną tablicę (Supabase)
+
+1. Załóż darmowe konto na [supabase.com](https://supabase.com) i utwórz nowy projekt.
+2. W edytorze SQL wklej i uruchom skrypt `docs/supabase-scores.sql` (tabela `scores`, RLS: tylko odczyt i dodawanie wierszy, limit długości nicku i zakresu punktów/czasu).
+3. W ustawieniach projektu (**Project Settings → API**) skopiuj dwie wartości:
+   - **Project URL** (np. `https://xxxxxxxx.supabase.co`)
+   - **anon public** key (klucz publiczny; **nie** używaj `service_role`)
+4. Wklej je w `game.js`, w obiekcie `CFG.LEADERBOARD`:
+
+```js
+LEADERBOARD: {
+    SUPABASE_URL: 'https://xxxxxxxx.supabase.co',
+    SUPABASE_ANON_KEY: 'eyJ...twój_anon_key...',
+    // LIMIT, NICK_MAX – bez zmian
+},
+```
+
+5. Wdróż zaktualizowany `game.js`. Wspólna tablica działa na hoście HTTP/HTTPS (nie na `file://`, bo przeglądarka zablokuje zapytanie).
+
 ## Tech stack
 
-- **Phaser 3.80.1** (CDN jsDelivr), czysty **JavaScript** (jeden plik `game.js`), **HTML5** (`index.html`)
+- **Phaser 3.80.1** (CDN jsDelivr), czysty **JavaScript** (`game.js`, `audio.js`, `leaderboard.js`), **HTML5** (`index.html`)
 - Rozdzielczość bazowa **568×320**, `Phaser.Scale.FIT`, `pixelArt: true`, `roundPixels`
-- Sceny: `Boot → Title → Intro → Play` (boss, finał i zakończenie to tryby `PlayScene`; game over i KONIEC GRY to nakładki)
+- Sceny: `Boot → Title → Intro → Play` (boss, finał i zakończenie to tryby `PlayScene`; game over i KONIEC GRY to nakładki; nick i tablica to scena `Board`)
 - **Dźwięk:** `audio.js` – własny silnik Web Audio (PWM, delay, filtry, szum, sekwencer z kolejką czasu), muzyka i SFX proceduralne, możliwość renderu offline do WAV
 - Fizyka własna (bez Arcade): prosty skok z grawitacją i skrzynki kolizji
 - Wszystkie stałe gry (prędkości, punkty, odstępy, czasy intra i bossa, poziom 2) są na górze `game.js` w obiekcie **`CFG`**
@@ -129,8 +156,10 @@ Przebudowa grafik: `pip install pillow numpy scipy` → `python3 tools/process_a
 
 ```
 index.html              # strona, CDN Phaser, podpowiedź "obróć telefon"
-game.js                 # cała gra: CFG, tekstury, sceny Boot/Title/Intro/Play
+game.js                 # cała gra: CFG, tekstury, sceny Boot/Title/Intro/Play/Board
 audio.js                # muzyka chiptune i efekty (Web Audio), przycisk/klawisz mute
+leaderboard.js          # tablica wyników: localStorage + opcjonalnie Supabase REST
+docs/supabase-scores.sql # schemat tabeli scores i polityki RLS (wspólna tablica)
 tools/process_assets.py # przetwarzanie oryginalnych grafik -> assets/game + assets.js
 assets/
 ├── sprites/            # oryginały (Arek, Kamil, auto, Fibi, casual) + podglądy *_x4.png
@@ -174,7 +203,6 @@ Szczegóły: wiki → *Assety i grafiki*.
 - Power-upy i easter eggi (inspiracja Mustache Protocol)
 - Mechanika „porywania” przeciwników
 - Kolejne poziomy i bossowie
-- Ekran wyników / rekordy
 
 ---
 

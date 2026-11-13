@@ -2,6 +2,7 @@
 /* =====================================================================
    Fibi Run - retro side-scroller (Phaser 3), 16-bit pixel art
    Sceny: Boot -> Title -> Intro -> Play (poziom 1 -> przelot -> boss Kamil -> poziom 2; game over / wygrana to nakładki)
+   Tablica wyników: Board (nick + lista), zapis w leaderboard.js
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -155,6 +156,16 @@ const CFG = {
     BAT_HEIGHT: 76,             // średnia wysokość lotu nad ziemią
     BAT_WAVE: 14,               // amplituda falowania (px)
 
+    // --- tablica wyników ---
+    LEADERBOARD: {
+        SUPABASE_URL: '',           // np. https://xxxxxxxx.supabase.co  (puste = tylko localStorage)
+        SUPABASE_ANON_KEY: '',      // publiczny klucz anon (NIE service_role)
+        LIMIT: 20,                  // ile wyników trzymać / pobierać
+        NICK_MAX: 12,
+        SCORE_MAX: 999999,
+        TIME_MAX_MS: 86400000,      // 24 h
+    },
+
     // --- tło ---
     TREE_GAP_MIN: 130,      // odstępy między drzewami w tle (px, przestrzeń tła)
     TREE_GAP_MAX: 380,
@@ -200,6 +211,7 @@ const GLYPHS = {
     '!': '00100,00100,00100,00100,00100,00000,00100', '?': '01110,10001,00001,00010,00100,00000,00100',
     '=': '00000,00000,11111,00000,11111,00000,00000', '<': '00010,00100,01000,10000,01000,00100,00010',
     'Ł': '10000,10000,10100,11000,10000,10000,11111',
+    '#': '01010,01010,11111,01010,11111,01010,01010',
     '>': '01000,00100,00010,00001,00010,00100,01000', ' ': '00000,00000,00000,00000,00000,00000,00000',
 };
 
@@ -763,18 +775,26 @@ class TitleScene extends Phaser.Scene {
         pxText(this, Math.round((fx + fw + 6 + W) / 2), ty, 'RUN', big).setDepth(7);
 
         const start = () => {
-            if (this.starting) return;
+            if (this.starting || this.scene.isActive('Board')) return;
             this.starting = true;
+            if (window.FibiLeaderboard) FibiLeaderboard.startRun();
             audioSfx('click');
             this.cameras.main.fadeOut(180, 12, 8, 24);
             const next = /[?&]nointro\b/.test(location.search) ? 'Play' : 'Intro';
             this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(next));
         };
-        makeButton(this, W / 2, 232, 220, 26, 'START NEW GAME', start, 8);
+        const openBoard = () => {
+            if (this.starting || this.scene.isActive('Board')) return;
+            audioSfx('click');
+            this.scene.pause();
+            this.scene.launch('Board', { mode: 'view', from: 'Title' });
+        };
+        makeButton(this, W / 2, 214, 220, 26, 'START NEW GAME', start, 8);
+        makeButton(this, W / 2, 248, 220, 26, 'WYNIKI', openBoard, 8);
         const hint = IS_TOUCH ? 'TAP TO START' : 'SPACE OR ENTER';
-        pxText(this, W / 2, 268, hint, { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(8);
+        pxText(this, W / 2, 284, hint, { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(8);
         if (!IS_TOUCH) {
-            pxText(this, W / 2, 302, '< > SPEED   SPACE JUMP   ALT SWORD', { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(8);
+            pxText(this, W / 2, 304, '< > SPEED   SPACE JUMP   ALT SWORD', { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(8);
         }
         addMuteButton(this, 8, 6, 30);
         audioPlay('title');
@@ -835,6 +855,7 @@ class IntroScene extends Phaser.Scene {
         // podpowiedź i pomijanie (Spacja / Enter / tap)
         const hint = IS_TOUCH ? 'TAP - SKIP' : 'SPACE - SKIP';
         pxText(this, W - 8, 8, hint, { scale: 2, color: '#ffffff', shadow: '#2a1040', ox: 1 }).setDepth(20).setAlpha(0.85);
+        this.timeTxt = pxText(this, W - 8, 28, '00:00', { scale: 2, color: '#ffd040', shadow: '#3a1008', ox: 1 }).setDepth(20);
         const kb = this.input.keyboard;
         kb.addKeys('SPACE,ENTER', true);
         const skip = () => { if (this.t > CFG.INTRO_SKIP_GUARD) this.finish(); };
@@ -858,6 +879,7 @@ class IntroScene extends Phaser.Scene {
         if (this.finished) return;
         const dt = Math.min(delta, 50) / 1000;
         this.t += dt; this.phaseT += dt;
+        if (this.timeTxt && window.FibiLeaderboard) this.timeTxt.setString(FibiLeaderboard.formatTime(FibiLeaderboard.elapsedMs()));
         const arek = this.arek, dog = this.dog, car = this.car, gy = CFG.GROUND_Y;
         const P = this.phaseT;
 
@@ -1092,6 +1114,7 @@ class PlayScene extends Phaser.Scene {
         this.startX = (data && data.startX) || 130;
         this.startLevel = (data && data.level) || 1;
         this.startArena = !!(data && data.arena);       // checkpoint: po przegranej z bossem wracamy od razu do areny
+        this.carryScore = (data && data.totalScore) || 0;
     }
 
     /** Parametry poziomu (poziom 1: stałe CFG, poziom 2: CFG.LEVEL2). */
@@ -1120,6 +1143,9 @@ class PlayScene extends Phaser.Scene {
         this.scrollCur = this.L.scroll;
         this.clock = 0;
         this.score = 0;
+        this.totalScore = this.carryScore;
+        this.runEnded = false;
+        this.runTimeMs = 0;
         this.lives = CFG.START_LIVES;
         this.invuln = 0;
         this.jumpBuf = 0;
@@ -1159,6 +1185,7 @@ class PlayScene extends Phaser.Scene {
         addMuteButton(this, 126, 4, 30);
         if (this.startArena) {                          // checkpoint walki z bossem
             this.lives = CFG.BOSS_RETRY_LIVES;
+            if (this.totalScore === 0) this.totalScore = (this.level === 2 ? CFG.GOAL_SCORE : 0) + this.L.goal;
             this.refreshHud();
             this.time.delayedCall(60, () => { this.score = this.L.goal; this.refreshHud(); this.startRush(); });
         } else {
@@ -1174,11 +1201,12 @@ class PlayScene extends Phaser.Scene {
     }
 
     showBanner(title, sub) {
-        const b = [
+        if (this._banner) this._banner.forEach(o => { this.tweens.killTweensOf(o); o.destroy(); });
+        const b = this._banner = [
             pxText(this, W / 2, 84, title, { scale: 5, color: '#ffd040', shadow: '#8c1e14' }).setScrollFactor(0).setDepth(12),
             pxText(this, W / 2, 128, sub, { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setScrollFactor(0).setDepth(12),
         ];
-        this.tweens.add({ targets: b, alpha: 0, delay: 2200, duration: 600, onComplete: () => b.forEach(o => o.destroy()) });
+        this.tweens.add({ targets: b, alpha: 0, delay: 2200, duration: 600, onComplete: () => { b.forEach(o => o.destroy()); if (this._banner === b) this._banner = null; } });
     }
 
     /* ---------- HUD ---------- */
@@ -1188,6 +1216,8 @@ class PlayScene extends Phaser.Scene {
             this.heartImgs.push(this.add.image(8 + i * 22, 8, 'heart').setOrigin(0).setScrollFactor(0).setDepth(10));
         }
         this.scoreTxt = pxText(this, W - 8, 8, this.scoreStr(), { scale: 2, color: '#ffd040', shadow: '#3a1008', ox: 1 })
+            .setScrollFactor(0).setDepth(10);
+        this.timeTxt = pxText(this, 182, 10, '00:00', { scale: 2, color: '#ffd040', shadow: '#3a1008', ox: 0 })
             .setScrollFactor(0).setDepth(10);
         // pasek postępu do celu poziomu
         this.add.rectangle(W - 8 - 121, 25, 122, 8, 0xffd040).setOrigin(0).setScrollFactor(0).setDepth(10);
@@ -1207,6 +1237,10 @@ class PlayScene extends Phaser.Scene {
             h.setTexture(i < this.lives ? 'heart' : 'heart_empty').setVisible(i < Math.max(this.lives, CFG.START_LIVES));
         });
         this.scoreTxt.setString(this.scoreStr());
+        if (this.timeTxt && window.FibiLeaderboard) {
+            const ms = this.runEnded ? this.runTimeMs : FibiLeaderboard.elapsedMs();
+            this.timeTxt.setString(FibiLeaderboard.formatTime(ms));
+        }
         this.bar.width = Math.max(1, Math.round(118 * Math.min(1, this.score / this.L.goal)));
         if (this.boss) this.bossHud.slice(1).forEach((c, i) => c.setTexture(i < this.boss.hp ? 'cross' : 'cross_empty'));
     }
@@ -1337,6 +1371,7 @@ class PlayScene extends Phaser.Scene {
     }
     addScore(n, wx, y) {
         this.score += n;
+        this.totalScore += n;
         this.popup(wx, y, '+' + n, '#ffd040');
         this.refreshHud();
         this.tweens.add({ targets: this.scoreTxt, scale: 1.25, duration: 90, yoyo: true });
@@ -1371,6 +1406,10 @@ class PlayScene extends Phaser.Scene {
     update(time, delta) {
         const dt = Math.min(delta, 50) / 1000;
         this.clock += dt;
+        if (this.timeTxt && !this.runEnded && window.FibiLeaderboard) {
+            this.timeTxt.setString(FibiLeaderboard.formatTime(FibiLeaderboard.elapsedMs()));
+        }
+        if (this.scene.isActive('Board')) return;
         const k = this.keys;
         let jumpPress = this.jumpQ, attackPress = this.attackQ;
         const enterPress = this.enterQ, escPress = this.escQ;
@@ -1380,7 +1419,7 @@ class PlayScene extends Phaser.Scene {
         if (this.carSnd) this.carSnd.update(this.car, this.camX, dt);
         if (this.state === 'final') {
             if (this.endReady && (enterPress || escPress)) this.toMenu();
-            else if (this.endReady && (rPress || jumpPress)) this.scene.restart();
+            else if (this.endReady && (rPress || jumpPress)) this.playAgain();
             return;
         }
         if (this.state !== 'play') {
@@ -2157,16 +2196,36 @@ class PlayScene extends Phaser.Scene {
     }
 
     /* ---------- koniec gry ---------- */
-    retryData() { return this.bossReached ? { level: this.level, arena: true } : undefined; }
+    retryData() { return this.bossReached ? { level: this.level, arena: true, totalScore: this.totalScore } : undefined; }
     restartLevel() { this.scene.restart(this.retryData()); }
+    freezeRun() {
+        if (this.runEnded) return;
+        this.runEnded = true;
+        this.runTimeMs = window.FibiLeaderboard ? FibiLeaderboard.elapsedMs() : 0;
+        if (this.timeTxt && window.FibiLeaderboard) this.timeTxt.setString(FibiLeaderboard.formatTime(this.runTimeMs));
+        if (this._banner) { this._banner.forEach(o => { this.tweens.killTweensOf(o); o.destroy(); }); this._banner = null; }
+        if (this.hintTxt) this.hintTxt.setVisible(false);
+    }
+    openScoreEntry() {
+        this.scene.launch('Board', {
+            mode: 'nick', from: 'Play',
+            score: this.totalScore,
+            time_ms: this.runTimeMs,
+        });
+    }
+    afterBoard() {
+        if (this.state === 'final') this.showFinalButtons();
+        else this.showEnd('GAME OVER', '#ff4040', '#4a0808', 'TRY AGAIN');
+    }
     gameOver() {
         this.state = 'over';
+        this.freezeRun();
         audioPlay('gameover');
         this.arek.anims.stop();
         this.arek.setTexture('arek_jump_4').setTint(0xff6060).setAlpha(1);
         this.slash.setVisible(false);
         this.tweens.add({ targets: this.arek, y: this.arek.y - 24, angle: 90, alpha: 0.7, duration: 500, ease: 'Quad.out' });
-        this.showEnd('GAME OVER', '#ff4040', '#4a0808', 'TRY AGAIN');
+        this.time.delayedCall(550, () => this.openScoreEntry());
     }
     showEnd(title, color, shadow, label) {
         this.endReady = false;
@@ -2176,7 +2235,8 @@ class PlayScene extends Phaser.Scene {
         const t = pxText(this, W / 2, 56, title, { scale: 6, color, shadow }).setScrollFactor(0).setDepth(d + 1);
         const sub = this.mode === 'boss' ? (this.final ? 'KS. KAMIL WINS... AGAIN' : 'KS. KAMIL WINS THIS ROUND') : `REACH ${this.L.goal} POINTS TO WIN`;
         pxText(this, W / 2, 112, sub, { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setScrollFactor(0).setDepth(d + 1);
-        pxText(this, W / 2, 140, this.scoreStr(), { scale: 3, color: '#ffd040', shadow: '#3a1008' }).setScrollFactor(0).setDepth(d + 1);
+        const tot = 'SCORE ' + String(this.totalScore).padStart(4, '0') + '   CZAS ' + (window.FibiLeaderboard ? FibiLeaderboard.formatTime(this.runTimeMs) : '00:00');
+        pxText(this, W / 2, 140, tot, { scale: 2, color: '#ffd040', shadow: '#3a1008' }).setScrollFactor(0).setDepth(d + 1);
         const btn = makeButton(this, W / 2, 190, 220, 28, label, () => { if (this.endReady) this.restartLevel(); }, d + 1);
         const hint = IS_TOUCH ? 'TAP THE BUTTON' : 'SPACE OR ENTER   ESC = MENU';
         pxText(this, W / 2, 232, hint, { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setScrollFactor(0).setDepth(d + 1);
@@ -2184,24 +2244,343 @@ class PlayScene extends Phaser.Scene {
         this.time.delayedCall(700, () => { this.endReady = true; });
         this.endObjects = [dim, t, btn];
     }
-    /** Ekran KONIEC GRY po zakończeniu fabuły. */
+    /** Ekran KONIEC GRY po zakończeniu fabuły: najpierw nick, potem przyciski. */
     showFinal() {
         this.state = 'final';
+        this.freezeRun();
+        this.openScoreEntry();
+    }
+    showFinalButtons() {
         this.endReady = false;
         const d = 20;
         const dim = this.add.rectangle(0, 0, W, H, 0x0c0818, 0.72).setOrigin(0).setScrollFactor(0).setDepth(d).setAlpha(0);
         this.tweens.add({ targets: dim, alpha: 1, duration: 600 });
-        if (this.winTxt) this.winTxt.destroy();
+        if (this.winTxt) { this.winTxt.destroy(); this.winTxt = null; }
         pxText(this, W / 2, 50, 'KONIEC GRY', { scale: 7, color: '#ffd040', shadow: '#8c1e14' }).setScrollFactor(0).setDepth(d + 1);
         pxText(this, W / 2, 108, 'DZIĘKI ZA GRĘ!', { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setScrollFactor(0).setDepth(d + 1);
-        pxText(this, W / 2, 132, 'FIBI RUN', { scale: 2, color: '#f0d8a0', shadow: '#2a1608' }).setScrollFactor(0).setDepth(d + 1);
+        const tot = 'SCORE ' + String(this.totalScore).padStart(4, '0') + '   CZAS ' + (window.FibiLeaderboard ? FibiLeaderboard.formatTime(this.runTimeMs) : '00:00');
+        pxText(this, W / 2, 132, tot, { scale: 2, color: '#ffd040', shadow: '#3a1008' }).setScrollFactor(0).setDepth(d + 1);
         makeButton(this, W / 2, 168, 220, 26, 'MENU', () => { if (this.endReady) this.toMenu(); }, d + 1);
-        makeButton(this, W / 2, 208, 220, 26, 'PLAY AGAIN', () => { if (this.endReady) this.scene.restart(); }, d + 1);
+        makeButton(this, W / 2, 208, 220, 26, 'PLAY AGAIN', () => { if (this.endReady) this.playAgain(); }, d + 1);
         const hint = IS_TOUCH ? 'TAP A BUTTON' : 'ENTER = MENU   R = PLAY AGAIN';
         pxText(this, W / 2, 252, hint, { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setScrollFactor(0).setDepth(d + 1);
         this.time.delayedCall(700, () => { this.endReady = true; });
     }
+    playAgain() {
+        if (window.FibiLeaderboard) FibiLeaderboard.startRun();
+        this.scene.restart();
+    }
     toMenu() { audioStop(0.2); this.scene.start('Title'); }
+}
+
+
+/* =====================================================================
+   TABLICA WYNIKÓW + wpis nicku (nakładka na Title / Play)
+   ===================================================================== */
+class BoardScene extends Phaser.Scene {
+    constructor() { super('Board'); }
+
+    init(data) {
+        this.mode = (data && data.mode) || 'view';   // 'nick' | 'view'
+        this.from = (data && data.from) || 'Title';
+        this.score = (data && data.score) || 0;
+        this.timeMs = (data && data.time_ms) || 0;
+        this.highlight = data && data.highlight;     // {nick, score, time_ms}
+        this.savedNote = '';
+    }
+
+    create() {
+        this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
+        this.parts = [];
+        this.cursorOn = true;
+        this.nick = (window.FibiLeaderboard && FibiLeaderboard.lastNick()) || '';
+        this.busy = false;
+        this.drawChrome();
+        const kb = this.input.keyboard;
+        if (kb) {
+            kb.on('keydown-ESC', () => { if (this.mode === 'view') this.close(); else this.skip(); });
+            kb.on('keydown-ENTER', () => { if (this.mode === 'view') this.close(); else this.submit(); });
+        }
+        if (this.mode === 'nick') this.buildNick();
+        else this.buildList();
+        this.events.once('shutdown', () => this.hideNickInput());
+    }
+
+    keep(obj) { this.parts.push(obj); return obj; }
+    drawChrome() {
+        // pełne, nieprzezroczyste tło – HUD / menu pod spodem nie przebija się przez listę
+        this.keep(this.add.rectangle(0, 0, W, H, 0x0c0818, 1).setOrigin(0).setDepth(20).setInteractive());
+        this.keep(this.add.rectangle(8, 4, W - 16, H - 8, 0x8c1e14).setOrigin(0).setDepth(20.1));
+        this.keep(this.add.rectangle(10, 6, W - 20, H - 12, 0xffd040).setOrigin(0).setDepth(20.1));
+        this.keep(this.add.rectangle(12, 8, W - 24, H - 16, 0x160c28).setOrigin(0).setDepth(20.1));
+    }
+    keepBtn(btn) {
+        (btn.parts || []).forEach(o => this.keep(o));
+        if (btn.hit) this.keep(btn.hit);
+        return btn;
+    }
+    setGameKb(on) {
+        const k = this.game.input.keyboard;
+        if (!k) return;
+        const codes = [Phaser.Input.Keyboard.KeyCodes.SPACE, Phaser.Input.Keyboard.KeyCodes.ENTER,
+            Phaser.Input.Keyboard.KeyCodes.LEFT, Phaser.Input.Keyboard.KeyCodes.RIGHT,
+            Phaser.Input.Keyboard.KeyCodes.UP, Phaser.Input.Keyboard.KeyCodes.DOWN, Phaser.Input.Keyboard.KeyCodes.ALT];
+        if (on) k.addCapture(codes); else k.removeCapture(codes);
+        k.enabled = on;
+    }
+
+    clearUi() {
+        this.hideNickInput();
+        this.parts.forEach(o => { if (o && o.active) o.destroy(); });
+        this.parts = [];
+        this.nickBox = null;
+        this.cursor = null;
+        this.nickTxt = null;
+    }
+
+    /* ---------- wpis nicku ---------- */
+    buildNick() {
+        const d = 21, lb = window.FibiLeaderboard;
+        const timeStr = lb ? lb.formatTime(this.timeMs) : '00:00';
+        this.keep(pxText(this, W / 2, 18, 'WPISZ NICK', { scale: 3, color: '#ffd040', shadow: '#8c1e14' }).setDepth(d));
+        this.keep(pxText(this, W / 2, 44, 'SCORE ' + String(this.score).padStart(4, '0') + '   CZAS ' + timeStr, { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setDepth(d));
+
+        const bw = 280, bh = 28, bx = Math.round((W - bw) / 2), by = 68;
+        this.keep(this.add.rectangle(bx, by, bw, bh, 0x8c1e14).setOrigin(0).setDepth(d));
+        this.keep(this.add.rectangle(bx + 2, by + 2, bw - 4, bh - 4, 0x1e163c).setOrigin(0).setDepth(d));
+        this.nickBox = this.keep(this.add.zone(bx, by, bw, bh).setOrigin(0).setDepth(d + 2).setInteractive({ useHandCursor: true }));
+        this.nickBox.on('pointerdown', () => this.focusNickInput());
+        this.nickTxt = this.keep(pxText(this, bx + 10, by + 7, this.nickDisplay(), { scale: 2, color: '#ffd040', shadow: '#3a1008', ox: 0 }).setDepth(d + 1));
+        this.cursor = this.keep(this.add.rectangle(bx + 10, by + 8, 8, 14, 0xffd040).setOrigin(0).setDepth(d + 1));
+        this.refreshNick();
+
+        this.buildKeys(d);
+        this.keepBtn(makeButton(this, W / 2 - 90, 246, 140, 26, 'OK', () => this.submit(), d));
+        this.keepBtn(makeButton(this, W / 2 + 90, 246, 140, 26, 'POMIŃ', () => this.skip(), d));
+        const tip = IS_TOUCH ? 'TAP LETTERS OR THE BOX' : 'TYPE   ENTER = OK   ESC = SKIP';
+        this.keep(pxText(this, W / 2, 280, tip, { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(d));
+        this.showNickInput();
+    }
+
+    nickDisplay() { return this.nick || ''; }
+
+    refreshNick() {
+        if (!this.nickTxt) return;
+        this.nickTxt.setString(this.nickDisplay() || ' ');
+        const scale = 2, bx = Math.round((W - 280) / 2);
+        const cx = bx + 10 + this.nick.length * 6 * scale;
+        if (this.cursor) this.cursor.setPosition(cx, 76).setVisible(this.cursorOn);
+    }
+
+    typeChar(ch) {
+        if (this.busy) return;
+        const next = (window.FibiLeaderboard ? FibiLeaderboard.sanitizeNick(this.nick + ch) : (this.nick + ch).slice(0, 12));
+        this.nick = next;
+        this.syncNickInput();
+        this.refreshNick();
+    }
+    backspace() {
+        if (this.busy || !this.nick) return;
+        this.nick = this.nick.slice(0, -1);
+        this.syncNickInput();
+        this.refreshNick();
+    }
+
+    buildKeys(d) {
+        const rows = ['ABCDEFGHIJKLM', 'NOPQRSTUVWXYZ', '0123456789-', 'ĄĆĘŁŃÓŚŹŻ'];
+        const cw = 36, ch = 26, gap = 2;
+        rows.forEach((row, ri) => {
+            const total = row.length * cw + Math.max(0, row.length - 1) * gap;
+            let x = Math.round((W - total) / 2);
+            const y = 104 + ri * (ch + 3);
+            for (const letter of row) {
+                this.letterCell(x, y, cw, ch, letter, () => this.typeChar(letter), d);
+                x += cw + gap;
+            }
+            if (ri === 3) {
+                this.letterCell(x + 6, y, 48, ch, 'SPC', () => this.typeChar(' '), d);
+                this.letterCell(x + 58, y, 48, ch, 'DEL', () => this.backspace(), d);
+            }
+        });
+    }
+
+    letterCell(x, y, w, h, label, onClick, d) {
+        const bg = this.keep(this.add.rectangle(x, y, w, h, 0x3a1850).setOrigin(0).setDepth(d));
+        this.keep(this.add.rectangle(x, y, w, 2, 0x6a3a80).setOrigin(0).setDepth(d));
+        this.keep(pxText(this, x + Math.round(w / 2), y + Math.round((h - 14) / 2), label, { scale: 2, color: '#ffd040', shadow: '#1a0820' }).setDepth(d + 1));
+        const hit = this.keep(this.add.zone(x, y, w, h).setOrigin(0).setDepth(d + 2).setInteractive({ useHandCursor: true }));
+        hit.on('pointerdown', () => { bg.setFillStyle(0x6a3a80); onClick(); });
+        hit.on('pointerup', () => bg.setFillStyle(0x3a1850));
+        hit.on('pointerout', () => bg.setFillStyle(0x3a1850));
+    }
+
+    /* ukryte pole HTML: klawiatura telefonu + pisanie na komputerze */
+    showNickInput() {
+        let el = document.getElementById('fibi-nick-input');
+        if (!el) {
+            el = document.createElement('input');
+            el.id = 'fibi-nick-input';
+            el.type = 'text';
+            el.maxLength = 12;
+            el.autocomplete = 'off';
+            el.autocapitalize = 'characters';
+            el.spellcheck = false;
+            el.setAttribute('aria-label', 'Nick');
+            document.body.appendChild(el);
+        }
+        el.value = this.nick;
+        el.className = 'fibi-nick-hidden';
+        const onIn = () => {
+            const v = window.FibiLeaderboard ? FibiLeaderboard.sanitizeNick(el.value) : el.value;
+            if (el.value !== v) {
+                const pos = el.selectionStart;
+                el.value = v;
+                try { el.setSelectionRange(Math.min(pos, v.length), Math.min(pos, v.length)); } catch (e) { /* ok */ }
+            }
+            this.nick = v;
+            this.refreshNick();
+        };
+        const onKey = (ev) => {
+            ev.stopPropagation();
+            if (ev.key === 'Enter') { ev.preventDefault(); this.submit(); }
+            else if (ev.key === 'Escape') { ev.preventDefault(); this.skip(); }
+        };
+        el.oninput = onIn;
+        el.onkeydown = onKey;
+        this.placeNickInput(el);
+        this.nickEl = el;
+        this.setGameKb(false);
+        this.time.delayedCall(80, () => this.focusNickInput());
+        if (!this._onResize) {
+            this._onResize = () => { if (this.nickEl) this.placeNickInput(this.nickEl); };
+            window.addEventListener('resize', this._onResize);
+        }
+    }
+    placeNickInput(el) {
+        const canvas = this.game.canvas;
+        if (!canvas) return;
+        const r = canvas.getBoundingClientRect();
+        const sx = r.width / W, sy = r.height / H;
+        const bx = Math.round((W - 280) / 2);
+        el.style.left = Math.round(r.left + (bx + 4) * sx) + 'px';
+        el.style.top = Math.round(r.top + 70 * sy) + 'px';
+        el.style.width = Math.round(272 * sx) + 'px';
+        el.style.height = Math.round(24 * sy) + 'px';
+    }
+    focusNickInput() {
+        if (!this.nickEl) return;
+        try { this.nickEl.focus({ preventScroll: true }); } catch (e) { this.nickEl.focus(); }
+    }
+    syncNickInput() {
+        if (this.nickEl && this.nickEl.value !== this.nick) this.nickEl.value = this.nick;
+    }
+    hideNickInput() {
+        this.setGameKb(true);
+        if (this._onResize) { window.removeEventListener('resize', this._onResize); this._onResize = null; }
+        const el = this.nickEl || document.getElementById('fibi-nick-input');
+        this.nickEl = null;
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+
+    submit() {
+        if (this.busy) return;
+        const nick = window.FibiLeaderboard ? FibiLeaderboard.sanitizeNick(this.nick) : (this.nick || '').trim();
+        if (!nick) return;                          // pusty nick: tylko POMIN
+        this.busy = true;
+        this.hideNickInput();
+        audioSfx('click');
+        const entry = { nick, score: this.score, time_ms: this.timeMs };
+        const done = (res) => {
+            this.highlight = entry;
+            this.savedNote = (res && res.saved === 'local' && window.FibiLeaderboard && FibiLeaderboard.supabaseEnabled())
+                ? 'ZAPISANO LOKALNIE (BRAK SIECI)' : '';
+            this.mode = 'view';
+            this.busy = false;
+            this.clearUi();
+            this.drawChrome();
+            this.buildList(res && res.rows);
+        };
+        if (!window.FibiLeaderboard) { done({ rows: [entry], saved: 'none' }); return; }
+        FibiLeaderboard.submit(entry).then(done).catch(() => done({ rows: [entry], saved: 'local' }));
+    }
+
+    skip() {
+        if (this.busy || this.mode !== 'nick') return;
+        audioSfx('click');
+        this.mode = 'view';
+        this.highlight = null;
+        this.hideNickInput();
+        this.clearUi();
+        this.drawChrome();
+        this.buildList();
+    }
+
+    /* ---------- lista ---------- */
+    buildList(preloaded) {
+        const d = 21;
+        this.keep(pxText(this, W / 2, 14, 'WYNIKI', { scale: 4, color: '#ffd040', shadow: '#8c1e14' }).setDepth(d));
+        const hdr = ' #  ' + 'NICK'.padEnd(12, ' ') + '  ' + 'PKT'.padStart(5, ' ') + '  CZAS';
+        this.keep(pxText(this, W / 2, 48, hdr, { scale: 2, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(d));
+        const wait = this.keep(pxText(this, W / 2, 140, 'CZEKAJ...', { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setDepth(d));
+        const render = (rows) => {
+            if (wait && wait.active) wait.destroy();
+            this.drawRows(rows || [], d);
+        };
+        if (preloaded) render(preloaded);
+        else if (window.FibiLeaderboard) FibiLeaderboard.list().then(render).catch(() => render([]));
+        else render([]);
+        this.keepBtn(makeButton(this, W / 2, 252, 180, 26, 'WSTECZ', () => this.close(), d));
+        const tip = IS_TOUCH ? 'TAP WSTECZ' : 'ESC OR ENTER';
+        this.keep(pxText(this, W / 2, 286, tip, { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(d));
+    }
+
+    drawRows(rows, d) {
+        const shown = (rows || []).slice(0, 10);
+        if (!shown.length) {
+            this.keep(pxText(this, W / 2, 140, 'BRAK WYNIKÓW', { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setDepth(d));
+            return;
+        }
+        const hi = this.highlight;
+        const fmt = window.FibiLeaderboard ? FibiLeaderboard.formatTime : (ms => '00:00');
+        const same = (e) => hi && e.nick === hi.nick && e.score === hi.score && e.time_ms === hi.time_ms;
+        // podświetl pierwsze trafienie (świeżo dodany wynik)
+        let marked = false;
+        shown.forEach((e, i) => {
+            const y = 64 + i * 18;
+            const isHi = !marked && same(e);
+            if (isHi) marked = true;
+            const col = isHi ? '#ffffff' : '#ffd040';
+            const sh = isHi ? '#8c1e14' : '#3a1008';
+            const line = String(i + 1).padStart(2, ' ') + '  ' + e.nick.padEnd(12, ' ') + '  ' +
+                String(e.score).padStart(5, ' ') + '  ' + fmt(e.time_ms);
+            this.keep(pxText(this, W / 2, y, line, { scale: 2, color: col, shadow: sh }).setDepth(d));
+        });
+        const noteY = 64 + shown.length * 18 + 4;
+        if (noteY <= 244) {
+            if (this.savedNote) this.keep(pxText(this, W / 2, noteY, this.savedNote, { scale: 1, color: '#ff8080', shadow: '#400808' }).setDepth(d));
+            else if (window.FibiLeaderboard && FibiLeaderboard.supabaseEnabled()) {
+                this.keep(pxText(this, W / 2, noteY, 'WSPÓLNA TABLICA', { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(d));
+            }
+        }
+    }
+
+    close() {
+        if (this.busy) return;
+        this.hideNickInput();
+        const from = this.from;
+        const play = this.scene.get('Play');
+        const title = this.scene.get('Title');
+        this.scene.stop();
+        if (from === 'Play' && play) play.afterBoard();
+        if (from === 'Title' && title && title.scene.isPaused()) title.scene.resume();
+    }
+
+    update(time, delta) {
+        if (this.mode === 'nick' && this.cursor) {
+            const on = Math.floor(time / 400) % 2 === 0;
+            if (on !== this.cursorOn) { this.cursorOn = on; this.cursor.setVisible(on); }
+        }
+    }
 }
 
 /* =====================================================================
@@ -2224,7 +2603,7 @@ const game = new Phaser.Game({
         height: H,
     },
     input: { activePointers: 4, keyboard: { capture: [KC_.SPACE, KC_.ALT, KC_.LEFT, KC_.RIGHT, KC_.UP, KC_.DOWN, KC_.ENTER] } },
-    scene: [BootScene, TitleScene, IntroScene, PlayScene],
+    scene: [BootScene, TitleScene, IntroScene, PlayScene, BoardScene],
 });
 window.__arekGame = game;   // do debugowania / testów
 

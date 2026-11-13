@@ -60,6 +60,23 @@
             animation: rot 2s ease-in-out infinite;
         }
         @keyframes rot { 0%, 20% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+        #fibi-nick-input {
+            position: fixed;
+            z-index: 30;
+            margin: 0;
+            padding: 0 4px;
+            border: 0;
+            outline: none;
+            background: transparent;
+            color: transparent;
+            caret-color: #ffd040;
+            font-family: monospace;
+            font-size: 16px;
+            text-transform: uppercase;
+            opacity: 0;
+            /* pole jest nad ramką nicku, żeby na telefonie otworzyć klawiaturę */
+        }
+        #fibi-nick-input:focus { opacity: 0; }
         @media (orientation: portrait) and (max-width: 900px) {
             #rotate-hint { display: flex; }
         }
@@ -76,6 +93,7 @@
     <!-- grafiki jako data-URI (działa też z file://); generowane przez tools/process_assets.py -->
     <script src="assets/game/assets.js"></script>
     <script src="audio.js"></script>
+    <script src="leaderboard.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

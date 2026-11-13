@@ -858,7 +858,8 @@
     const gesture = () => { api.unlock(); if (unlocked) ['pointerdown', 'keydown', 'touchend', 'mousedown'].forEach(n => window.removeEventListener(n, gesture, true)); };
     ['pointerdown', 'keydown', 'touchend', 'mousedown'].forEach(n => window.addEventListener(n, gesture, true));
     window.addEventListener('keydown', (ev) => {
-        if ((ev.key === 'm' || ev.key === 'M') && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.repeat) api.toggleMute();
+        const typing = ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA' || ev.target.id === 'fibi-nick-input');
+        if (!typing && (ev.key === 'm' || ev.key === 'M') && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.repeat) api.toggleMute();
     }, true);
     document.addEventListener('visibilitychange', () => {
         if (!ctx || !unlocked) return;
