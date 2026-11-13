@@ -1251,6 +1251,7 @@ class PlayScene extends Phaser.Scene {
         this.facing = 1;
         this.barrels = []; this.monsters = []; this.hearts = []; this.crosses = []; this.bolts = [];
         this.boostT = 0; this.boostMul = 1; this.hahaK = null;
+        this.boostHud = null;   // instancja sceny jest używana ponownie (restart / następna misja) - obiekty HUD z poprzedniego przebiegu są już zniszczone
         this.boss = null; this.fibi = null; this.car = null; this.carObj = null; this.carBar = null; this.carInfo = null;
         if (this.carSnd) this.carSnd.stop(0.05);
         this.carSnd = null;
@@ -1492,6 +1493,7 @@ class PlayScene extends Phaser.Scene {
             this.boostHud = { parts: [icon, back, mid, bar], bar, streaks };
         }
         const h = this.boostHud;
+        if (!h.bar.active) { this.boostHud = null; return; }   // obiekty zniszczone (np. restart sceny) - utworzymy na nowo w następnej klatce
         h.parts.forEach(o => o.setVisible(on));
         if (on) h.bar.width = Math.max(1, Math.round(60 * this.boostT / CFG.SPEED_ITEM.TIME));
         h.streaks.forEach(st => {
@@ -1704,7 +1706,8 @@ class PlayScene extends Phaser.Scene {
             .setPosition(sx + CFG.SLASH_OFFSET_X * this.facing, sy - 30);
         this.slash.setAlpha(Math.min(1, this.attackT / (CFG.ATTACK_TIME * 0.6)));
 
-        this.updateBoostHud(dt);
+        // HUD przyspieszenia jest tylko kosmetyką: błąd w nim nie może zabić pętli update (wyjątek zatrzymuje cały RAF Phasera = zawieszona gra)
+        try { this.updateBoostHud(dt); } catch (e) { this.boostHud = null; if (window.console) console.warn('boostHud:', e); }
 
         // --- kamera i tło ---
         this.cameras.main.scrollX = Math.floor(this.camX);
