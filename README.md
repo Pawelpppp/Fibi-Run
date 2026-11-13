@@ -75,7 +75,7 @@ Grafiki:
 
 ### Przeszkody i przeciwnicy
 - **Beczki** – trzeba je przeskoczyć. Czasem (od 60 pkt, `DOUBLE_BARREL_CHANCE` w `CFG`) pojawiają się **dwie beczki**: **obok siebie** albo **jedna na drugiej** (wyższa przeszkoda – skok wzmocniony do `JUMP_VELOCITY: 420`, żeby zawsze dało się ją przeskoczyć).
-- **Potworek** – na razie jeden placeholder (zielony diablik, wygląd do ustalenia). Można go zabić mieczem.
+- **Potworek** – na razie jeden placeholder (zielony diablik, wygląd do ustalenia). Można go zabić mieczem. (W poziomie 2 dochodzą kolejne – patrz niżej.)
 
 ### Punkty
 | Akcja                                   | Punkty |
@@ -92,6 +92,29 @@ Grafiki:
 ### Tło
 - Szutrowa droga na pierwszym planie.
 - Z tyłu zachód słońca, wzgórza i co jakiś czas mijane **drzewa** w stylu 16-bit pixel art (drzewa to wybór tymczasowy – do ustalenia, co dokładnie).
+
+---
+
+## Po poziomie 1: walka z księdzem Kamilem (boss)
+
+**Przebieg** (po zdobyciu 1000 pkt; wszystkie wartości w `CFG` w `game.js`, sekcja „przejście po poziomie 1 i walka z bossem”):
+1. Sterowanie jest **zablokowane**, z ekranu znikają beczki/potworki. Ekran **gwałtownie przesuwa się w prawo** (`ARENA_RUSH_DISTANCE/TIME`), aż Arek stoi na **skrajnie lewej** stronie (`ARENA_HERO_X`), a na prawym końcu areny czeka **Fibi** (stoi).
+2. Ekran **się zatrzymuje** (statyczna arena). Nadjeżdża **samochód księdza Kamila**, ksiądz **wysiada** (grafiki `kamil_stand`, `kamil_walk_1/2`) i zaczyna się walka. Klawiatura / przyciski dotykowe są odblokowane – w arenie Arek chodzi **swobodnie w lewo i w prawo** (`BOSS_HERO_SPEED`), ekran się nie przewija.
+3. **Kamil ma 3 życia** (`BOSS_HP`) – widać je w HUD jako 3 złote **krzyżyki** (puste = stracone). Można go trafić **mieczem** albo **skacząc mu na głowę** (stomp, Arek odbija się w górę – `STOMP_BOUNCE`). Po każdym trafieniu Kamil jest chwilę **nietykalny** (`BOSS_INVULN`, miga) i ogłuszony/odrzucony (`BOSS_STUN`). Chodzi po arenie (raz podchodzi do Arka, raz krąży); z każdym straconym życiem jest szybszy i częściej rzuca czary.
+4. **Czar:** co kilka sekund (`BOSS_SPELL_MIN/MAX`) Kamil unosi świecący **krzyżyk** (zapowiedź `BOSS_SPELL_WINDUP`) i wysyła go w stronę Arka – w prawo albo w lewo, **nisko przy ziemi** (trzeba przeskoczyć) albo **wysoko** (trzeba nie skakać / przejść pod spodem) – `CROSS_*`. Krzyżyk można też zbić mieczem.
+5. Dotknięcie Kamila (poza skokiem na głowę) albo krzyżyka = **utrata życia** (zwykłe zasady, serduszka działają, nietykalność po trafieniu). 0 żyć w walce = **game over** (restart od poziomu 1).
+6. **Po wygranej:** Kamil w **szale** (czerwony, trzęsie się, „!!!”) biegnie do auta i wskakuje, auto podjeżdża do Fibiego, **zabiera go** i **odjeżdża w prawo**. Ekran zaczyna się znów przesuwać → **poziom 2**.
+
+## Poziom 2
+
+- **Cel: 3000 punktów** w poziomie 2 (`CFG.LEVEL2.GOAL_SCORE`). **Decyzja:** licznik punktów **zaczyna się od 0** w poziomie 2 (czyli „3000 w poziomie 2”, a nie 3000 łącznie); ukończenie = ekran „YOU WIN!”.
+- Trochę szybszy ekran (`CFG.LEVEL2`: `SCROLL_SPEED 100` itd.), częstsze potworki (`MONSTER_CHANCE 0.45`), beczki jak wcześniej (też podwójne – od początku, `DOUBLE_MIN_SCORE 0`).
+- **Nowe potworki (placeholdery, do podmiany na docelowe grafiki):**
+  - **Ghoul** – zielony diablik jak w poziomie 1 (+50),
+  - **Imp** – czerwony, **szybki** (biegnie na Arka, `IMP_SPEED`) (+70),
+  - **Bat** – fioletowy **nietoperz latający** na wysokości (`BAT_HEIGHT`, falujący lot; trzeba skoczyć/ciąć w skoku albo przejść pod nim) (+60).
+  Proporcje w `CFG.LEVEL2.MONSTER_MIX`. Wszystkie giną od miecza.
+- Życia i serduszka działają jak w poziomie 1.
 
 ---
 
@@ -159,7 +182,7 @@ Pliki `*_x4.png` to te same grafiki powiększone 4× (nearest neighbor) do podgl
 
 Wszystkie grafiki mają transparentne tło i są w stylu 16-bit.
 
-**Przetworzone grafiki do gry** (`assets/game/`, wygenerowane skryptem `tools/process_assets.py`): oryginały mają namalowaną szachownicę zamiast przezroczystości i są bardzo duże, więc skrypt usuwa tło, przycina i zmniejsza je do rozmiaru gry (oryginały zostają bez zmian). Beczka, potworek, serduszko, droga, tło i przyciski dotykowe są rysowane w kodzie (`game.js`).
+**Przetworzone grafiki do gry** (`assets/game/`, wygenerowane skryptem `tools/process_assets.py`): oryginały mają namalowaną szachownicę zamiast przezroczystości i są bardzo duże, więc skrypt usuwa tło, przycina i zmniejsza je do rozmiaru gry (oryginały zostają bez zmian). Ksiądz Kamil: `assets/game/kamil_stand.png`, `kamil_walk_1/2.png` (64 px wysokości, z `assets/sprites/ksiadz_kamil_*.png`). Beczka, potworki (zielony, czerwony, nietoperz), krzyżyk-czar, serduszko, droga, tło i przyciski dotykowe są rysowane w kodzie (`game.js`).
 
 **Do zrobienia:** docelowy wygląd potworka, własne grafiki beczki i tła, dźwięk.
 
@@ -177,13 +200,14 @@ Wszystkie grafiki mają transparentne tło i są w stylu 16-bit.
 8. Tło 16-bit z mijanymi elementami
 9. UI: licznik punktów i żyć, ekran wygranej po 1000 pkt
 10. Sterowanie dotykowe na telefonie
+11. Walka z bossem (ksiądz Kamil) i poziom 2 (3000 pkt, nowe potworki)
 
 ### Na później
 - Mówiący pies i dialogi z portretami
 - Power-upy i easter eggi (inspiracja Mustache Protocol)
 - Mechanika „porywania” przeciwników
 - Soundtrack chiptune
-- Kolejne poziomy i bossowie
+- Kolejne poziomy i bossowie (po poziomie 2)
 
 ---
 

@@ -30,6 +30,8 @@ ARCHIVE_FRAMES = ['run_1', 'run_2', 'run_3', 'jump', 'attack']
 ARCHIVE_DIR = os.path.join(ROOT, 'assets', 'sprites')
 CASUAL_H_GAME = 60     # wysokość Arka casual (px) - zbliżona do Arka w zbroi (64 px)
 CASUAL_FRAMES = ['arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_stand']
+KAMIL_H_GAME = 64      # wysokość księdza Kamila w grze (px) - jak Arek
+KAMIL_FRAMES = ['ksiadz_kamil_walk_1', 'ksiadz_kamil_walk_2', 'ksiadz_kamil_stand']
 DOG_H_GAME = 28        # wysokość Fibi w grze (px) - wyraźnie mniejsza od Arka (64 px)
 DOG_FRAMES = ['fibi_walk_1', 'fibi_walk_2', 'fibi_stand']
 FACE_SRC = os.path.join(ROOT, 'assets', 'portraits', 'fibi_portrait_front.png')   # portret Fibi na ekranie powitalnym
@@ -150,6 +152,7 @@ def main():
         im.save(os.path.join(OUT, f'arek_{n}.png'))
     process_title_face()
     process_casual()
+    process_kamil()
     copy_car()
     process_dog()
     write_bundle()
@@ -195,6 +198,30 @@ def process_casual():
     for n, im in zip(CASUAL_FRAMES, quantize(items, 48)):
         im.save(os.path.join(OUT, n + '.png'))
     print('casual frames', run_w, 'x', CASUAL_H_GAME)
+
+
+def process_kamil():
+    """Ksiądz Kamil (boss) -> assets/game/kamil_walk_1/2.png, kamil_stand.png (RGBA 160 px -> 64 px)."""
+    cut = {}
+    for n in KAMIL_FRAMES:
+        im = Image.open(os.path.join(ARCHIVE_DIR, n + '.png'))
+        im = im.convert('RGBA') if im.mode == 'RGBA' and (np.array(im)[..., 3] == 0).any() else remove_checkerboard(im)
+        cut[n] = im.crop(bbox(im))
+    scale = KAMIL_H_GAME / max(c.height for c in cut.values())
+    walk_w = max(round(cut[n].width * scale) for n in KAMIL_FRAMES if 'walk' in n)
+    items = []
+    for n in KAMIL_FRAMES:
+        c = cut[n]
+        sw, sh = max(1, round(c.width * scale)), max(1, round(c.height * scale))
+        rgb, mask = to_game(c, (sw, sh))
+        fw = walk_w if 'walk' in n else sw
+        frame = Image.new('RGB', (fw, KAMIL_H_GAME)); fm = np.zeros((KAMIL_H_GAME, fw), bool)
+        x0, y0 = (fw - sw) // 2, KAMIL_H_GAME - sh
+        frame.paste(rgb, (x0, y0)); fm[y0:y0 + sh, x0:x0 + sw] = mask
+        items.append((frame, fm))
+    for n, im in zip(KAMIL_FRAMES, quantize(items, 40)):
+        im.save(os.path.join(OUT, n.replace('ksiadz_kamil', 'kamil') + '.png'))
+    print('kamil frames', walk_w, 'x', KAMIL_H_GAME)
 
 
 def process_dog():
