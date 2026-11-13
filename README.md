@@ -139,13 +139,16 @@ assets/
 │   ├── arek_casual_jump_1..5.png   # casual: skok 5 faz (przysiad, wznoszenie, szczyt, opadanie, lądowanie)
 │   ├── arek_run6_1..6.png          # zbroja: bieg, 6 klatek (wys. 129–160)
 │   └── arek_jump_1..5.png          # zbroja: skok 5 faz (wys. 126–207, z uniesionym mieczem)
+│   │                   #   utrata życia – Kamil mija gracza i się śmieje (jeszcze niepodpięte w grze):
+│   ├── ksiadz_kamil_laugh_walk_1..4.png  # Kamil idzie w prawo, śmieje się, głowa do gracza (75–78×160), cykl 4 klatek
+│   └── ksiadz_kamil_bubble_haha.png      # dymek „HA HA!” (96×50, ogonek w lewo-dół; rysowany pikselowo)
 ├── portraits/          # portrety do dialogów (Fibi, Kamil, ...)
 └── game/               # przetworzone sprite'y do gry + assets.js (data-URI)
 ```
 
 ## Assety i placeholdery
 
-**Gotowe (własne grafiki):** Arek w zbroi (bieg 1–3, skok, atak; nowe: bieg 6 klatek `arek_run6_*`, skok 5 faz `arek_jump_*`), Arek casual (bieg 1–3, stoi; nowe: bieg 6 klatek `arek_casual_run6_*`, skok 5 faz `arek_casual_jump_*`), ksiądz Kamil (stoi, chód 1–2, portret), samochód Kamila (2 klatki jazdy + wariant z pustym siedzeniem generowany przez `process_assets.py`), Fibi (stoi, chód 1–2, portret).
+**Gotowe (własne grafiki):** Arek w zbroi (bieg 1–3, skok, atak; nowe: bieg 6 klatek `arek_run6_*`, skok 5 faz `arek_jump_*`), Arek casual (bieg 1–3, stoi; nowe: bieg 6 klatek `arek_casual_run6_*`, skok 5 faz `arek_casual_jump_*`), ksiądz Kamil (stoi, chód 1–2, portret; nowe: śmiejący się chód `ksiadz_kamil_laugh_walk_1..4` + dymek `ksiadz_kamil_bubble_haha`), samochód Kamila (2 klatki jazdy + wariant z pustym siedzeniem generowany przez `process_assets.py`), Fibi (stoi, chód 1–2, portret).
 
 **Placeholdery (rysowane w kodzie, do podmiany na docelowe grafiki):** beczka, potworki (ghoul, imp, nietoperz), krzyżyk-czar, serduszka, droga, tło (zachód słońca, wzgórza, drzewa), przyciski dotykowe, miecz i błyskawica w intro (w grafikach casual nie ma pozy z mieczem).
 
