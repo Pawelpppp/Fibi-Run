@@ -1,6 +1,6 @@
 'use strict';
 /* =====================================================================
-   ArekRun - retro side-scroller (Phaser 3), 16-bit pixel art
+   Fibi Run - retro side-scroller (Phaser 3), 16-bit pixel art
    Sceny: Boot -> Title -> Intro -> Play (poziom 1; ekrany końca gry/wygranej to nakładki)
    ===================================================================== */
 
@@ -431,7 +431,7 @@ class BootScene extends Phaser.Scene {
     constructor() { super('Boot'); }
     preload() {
         this.cameras.main.setBackgroundColor('#0c0818');
-        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'face', 'car_1', 'car_2', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand'];
+        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'fibi_face', 'car_1', 'car_2', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand'];
         names.forEach(n => {
             // data-URI (assets/game/assets.js) działa też z file://; fallback: zwykłe pliki
             const src = (window.AREK_ASSETS && window.AREK_ASSETS[n]) || `assets/game/${n}.png`;
@@ -453,24 +453,24 @@ class BootScene extends Phaser.Scene {
 }
 
 /* =====================================================================
-   EKRAN POWITALNY:  AREK [twarz] RUN  +  START NEW GAME
+   EKRAN POWITALNY:  FIBI [portret] RUN  +  START NEW GAME
    ===================================================================== */
 class TitleScene extends Phaser.Scene {
     constructor() { super('Title'); }
     create() {
         this.t = 0;
         this.bg = buildBackground(this);
-        const face = this.textures.get('face').getSourceImage();
+        const face = this.textures.get('fibi_face').getSourceImage();
         const fw = face.width, fh = face.height;
-        const fx = Math.round((W - fw) / 2), fy = 36;
+        const fx = Math.round((W - fw) / 2), fy = 36 + Math.round((170 - fh) / 2);   // środek jak dla portretu 170 px
         // ramka złoto-czerwona
         this.add.rectangle(fx - 4, fy - 4, fw + 8, fh + 8, 0x8c1e14).setOrigin(0).setDepth(6);
         this.add.rectangle(fx - 2, fy - 2, fw + 4, fh + 4, 0xffd040).setOrigin(0).setDepth(6);
         this.add.rectangle(fx, fy, fw, fh, 0x1e163c).setOrigin(0).setDepth(6);
-        this.add.image(fx, fy, 'face').setOrigin(0).setDepth(7);
+        this.add.image(fx, fy, 'fibi_face').setOrigin(0).setDepth(7);
         const ty = fy + Math.round(fh / 2) - 21;
         const big = { scale: 6, color: '#ffd040', shadow: '#8c1e14' };
-        pxText(this, Math.round((fx - 6) / 2), ty, 'AREK', big).setDepth(7);
+        pxText(this, Math.round((fx - 6) / 2), ty, 'FIBI', big).setDepth(7);
         pxText(this, Math.round((fx + fw + 6 + W) / 2), ty, 'RUN', big).setDepth(7);
 
         const start = () => {

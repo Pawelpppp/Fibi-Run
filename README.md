@@ -1,6 +1,6 @@
-# ArekRun
+# Fibi Run
 
-**ArekRun** – prosta gra 2D w stylu retro lat 90. (16-bit pixel art, SNES / Genesis era).
+**Fibi Run** – prosta gra 2D w stylu retro lat 90. (16-bit pixel art, SNES / Genesis era).
 Arek w złotej zbroi płytowej z dużym mieczem biegnie w prawo po szutrowej drodze, przeskakuje beczki i walczy z potworkami.
 
 Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – reklama/gra 16-bit side-scroller z 2026 roku.
@@ -29,8 +29,8 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – reklama/gra 16-bit
 ## Ekran powitalny
 
 Pierwszy ekran po uruchomieniu gry:
-- Układ: **AREK [twarz] RUN** – słowo „AREK” po lewej, twarz głównego bohatera na środku (w złoto-czerwonej ramce), słowo „RUN” po prawej.
-- Twarz z assetów (`assets/portraits/face_portrait.png`, w grze przetworzona do `assets/game/face.png`).
+- Układ: **FIBI [portret] RUN** – słowo „FIBI” po lewej, portret psa Fibi na środku (w złoto-czerwonej ramce), słowo „RUN” po prawej.
+- Portret z assetów (`assets/portraits/fibi_portrait_front.png`, w grze przetworzony do `assets/game/fibi_face.png` skryptem `tools/process_assets.py`).
 - Pod spodem czerwony przycisk **START NEW GAME** (klik / tap, Spacja lub Enter), który rozpoczyna poziom 1.
 
 ---
@@ -139,7 +139,7 @@ assets/
 │   ├── arek_run_1..3.png, arek_jump.png, arek_attack.png
 │   ├── car_1.png, car_2.png
 │   ├── fibi_walk_1.png, fibi_walk_2.png, fibi_stand.png
-│   ├── face.png
+│   ├── fibi_face.png                 # portret Fibi na ekran powitalny
 │   └── assets.js                     # te same PNG jako data-URI (działa z file://)
 └── portraits/
     ├── dialogue_portrait.png
@@ -161,7 +161,7 @@ Wszystkie grafiki mają transparentne tło i są w stylu 16-bit.
 ## Plan projektu (roadmap)
 
 1. **README** – założenia gry (ten plik)
-2. Ekran powitalny: napis Arek Run, twarz bohatera, START NEW GAME (+ intro: Arek, pies i samochód księdza Kamila)
+2. Ekran powitalny: napis Fibi Run, portret Fibi, START NEW GAME (+ intro: Arek, pies i samochód księdza Kamila)
 3. Scena Phaser: przesuwający się ekran, szutrowa droga, bieg Arka w prawo (szybciej / wolniej), blokada krawędzi ekranu
 4. Skok + beczki + punkty za przeskok (+30)
 5. Życia, utrata życia przy dotknięciu, ekran końca gry
