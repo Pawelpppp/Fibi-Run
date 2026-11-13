@@ -115,28 +115,18 @@ W arenie bossa → / ← poruszają Arka swobodnie po ekranie (ekran się nie pr
 
 Po **GAME OVER** i po ekranie **KONIEC GRY** (wygrana) gracz może wpisać **nick** (maks. 12 znaków, wielkie litery, cyfry, spacja, myślnik i polskie znaki). Zapis: nick, **łączna liczba punktów** z całej rozgrywki (poziom 1 + poziom 2) oraz **czas od kliknięcia START** do końca gry, w formacie `mm:ss`. Czas obejmuje intro i ewentualne „TRY AGAIN” w tej samej sesji (od tego samego START). „PLAY AGAIN” po wygranej zaczyna nowy pomiar.
 
-Podczas gry (i w intro) w HUD widać licznik czasu. Tablicę można też otworzyć z menu tytułowego przyciskiem **WYNIKI** (ranga, nick, punkty, czas). Sortowanie: więcej punktów, przy remisie krótszy czas. Lokalnie trzymane jest do 20 wyników (`localStorage`, klucz `fibi_leaderboard`).
+Podczas gry (i w intro) w HUD widać licznik czasu. Tablicę można też otworzyć z menu tytułowego przyciskiem **WYNIKI** (ranga, nick, punkty, czas; podczas pobierania widać **CZEKAJ...**). Sortowanie: więcej punktów, przy remisie krótszy czas. Lokalnie trzymane jest do 20 wyników (`localStorage`, klucz `fibi_leaderboard`).
 
-Domyślnie tablica jest **tylko w tej przeglądarce**. Wspólna tablica wszystkich graczy wymaga darmowego projektu [Supabase](https://supabase.com) – patrz kroki poniżej. Gdy klucz jest ustawiony, gra zapisuje i pobiera wyniki przez REST (`/rest/v1/scores`); przy błędzie sieci wynik zostaje lokalnie.
+Tablica jest **wspólna dla wszystkich graczy** — wyniki idą do Azure Function (`CFG.LEADERBOARD.API_URL`):
 
-### Jak włączyć wspólną tablicę (Supabase)
+`https://fibirun-scores-a3hea0bphtf2aaer.polandcentral-01.azurewebsites.net/api/scores`
 
-1. Załóż darmowe konto na [supabase.com](https://supabase.com) i utwórz nowy projekt.
-2. W edytorze SQL wklej i uruchom skrypt `docs/supabase-scores.sql` (tabela `scores`, RLS: tylko odczyt i dodawanie wierszy, limit długości nicku i zakresu punktów/czasu).
-3. W ustawieniach projektu (**Project Settings → API**) skopiuj dwie wartości:
-   - **Project URL** (np. `https://xxxxxxxx.supabase.co`)
-   - **anon public** key (klucz publiczny; **nie** używaj `service_role`)
-4. Wklej je w `game.js`, w obiekcie `CFG.LEADERBOARD`:
+- **GET** — top 20 (`nick`, `score`, `time_ms`, `created_at`)
+- **POST** — JSON `{nick, score, time_ms}` (`Content-Type: application/json`); czas krótszy niż 1 s jest przed wysyłką podnoszony do 1000 ms (wymóg API)
 
-```js
-LEADERBOARD: {
-    SUPABASE_URL: 'https://xxxxxxxx.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJ...twój_anon_key...',
-    // LIMIT, NICK_MAX – bez zmian
-},
-```
+CORS dopuszcza tylko **`https://pawelpppp.github.io`** oraz **`http://localhost`** (port 80, bez numeru portu w adresie; `http://localhost:8000` już nie przejdzie). Otwarcie gry jako `file://` albo z innej domeny nie przejdzie przez CORS — wtedy gra spada na zapis lokalny i pokazuje adnotację **OFFLINE** (wpis nie ginie). To samo przy błędzie sieci.
 
-5. Wdróż zaktualizowany `game.js`. Wspólna tablica działa na hoście HTTP/HTTPS (nie na `file://`, bo przeglądarka zablokuje zapytanie).
+Opcjonalnie zamiast Azure można ustawić [Supabase](https://supabase.com): wyczyść `API_URL` i wklej `SUPABASE_URL` oraz `SUPABASE_ANON_KEY` (schemat w `docs/supabase-scores.sql`). `API_URL` ma pierwszeństwo, gdy oba są wypełnione.
 
 ## Tech stack
 
@@ -158,7 +148,7 @@ Przebudowa grafik: `pip install pillow numpy scipy` → `python3 tools/process_a
 index.html              # strona, CDN Phaser, podpowiedź "obróć telefon"
 game.js                 # cała gra: CFG, tekstury, sceny Boot/Title/Intro/Play/Board
 audio.js                # muzyka chiptune i efekty (Web Audio), przycisk/klawisz mute
-leaderboard.js          # tablica wyników: localStorage + opcjonalnie Supabase REST
+leaderboard.js          # tablica wyników: Azure Function (API_URL) + localStorage, opcjonalnie Supabase
 docs/supabase-scores.sql # schemat tabeli scores i polityki RLS (wspólna tablica)
 tools/process_assets.py # przetwarzanie oryginalnych grafik -> assets/game + assets.js
 assets/

@@ -1,9 +1,10 @@
 'use strict';
 /* =====================================================================
    Fibi Run - tablica wyników
-   Domyślnie localStorage (klucz fibi_leaderboard). Gdy w CFG.LEADERBOARD
-   są SUPABASE_URL i SUPABASE_ANON_KEY, wyniki idą też na wspólny serwer
-   (POST/GET /rest/v1/scores). Przy błędzie sieci zapis zostaje lokalny.
+   Domyślnie wspólny serwer (CFG.LEADERBOARD.API_URL, Azure Function
+   albo dowolny REST: GET/POST /api/scores). Opcjonalnie Supabase
+   (SUPABASE_URL + SUPABASE_ANON_KEY). Zawsze kopia w localStorage
+   (klucz fibi_leaderboard). Przy błędzie sieci zapis zostaje lokalny.
    ===================================================================== */
 (function (global) {
     const STORE_KEY = 'fibi_leaderboard';
@@ -14,6 +15,7 @@
     const nickMax = () => cfg().NICK_MAX || 12;
     const scoreMax = () => cfg().SCORE_MAX || 999999;
     const timeMax = () => cfg().TIME_MAX_MS || 86400000;
+    const timeMin = () => cfg().TIME_MIN_MS || 1000;
 
     const PL = {
         ą: 'Ą', ć: 'Ć', ę: 'Ę', ł: 'Ł', ń: 'Ń', ó: 'Ó', ś: 'Ś', ź: 'Ź', ż: 'Ż',
@@ -53,6 +55,13 @@
         return { nick, score, time_ms };
     }
 
+    /* API wymaga time_ms >= 1000; lokalnie zostawiamy prawdziwy czas. */
+    function forRemote(entry) {
+        const e = validEntry(entry);
+        if (!e) return null;
+        return { nick: e.nick, score: e.score, time_ms: Math.max(timeMin(), e.time_ms) };
+    }
+
     function localList() {
         try {
             const raw = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
@@ -73,10 +82,40 @@
         return out;
     }
 
+    function apiEnabled() {
+        return !!(cfg().API_URL || '').trim();
+    }
+
     function supabaseEnabled() {
         const u = (cfg().SUPABASE_URL || '').trim();
         const k = (cfg().SUPABASE_ANON_KEY || '').trim();
         return !!(u && k);
+    }
+
+    function remoteEnabled() {
+        return apiEnabled() || supabaseEnabled();
+    }
+
+    function apiUrl() { return cfg().API_URL.trim().replace(/\/$/, ''); }
+
+    function restList() {
+        return fetch(apiUrl(), { headers: { Accept: 'application/json' } }).then(r => {
+            if (!r.ok) throw new Error('api ' + r.status);
+            return r.json();
+        }).then(rows => sortEntries((Array.isArray(rows) ? rows : []).map(validEntry).filter(Boolean)));
+    }
+
+    function restInsert(entry) {
+        const e = forRemote(entry);
+        if (!e) return restList();
+        return fetch(apiUrl(), {
+            method: 'POST',
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify(e),
+        }).then(r => {
+            if (!r.ok) throw new Error('api ' + r.status);
+            return restList();
+        });
     }
 
     function sbHeaders(extra) {
@@ -102,7 +141,7 @@
     }
 
     function sbInsert(entry) {
-        const e = validEntry(entry);
+        const e = forRemote(entry);
         if (!e) return sbList();
         return fetch(sbUrl(), {
             method: 'POST',
@@ -114,12 +153,26 @@
         });
     }
 
+    function fetchRemoteList() {
+        if (apiEnabled()) return restList();
+        if (supabaseEnabled()) return sbList();
+        return Promise.resolve(localList());
+    }
+
+    function insertRemote(entry) {
+        if (apiEnabled()) return restInsert(entry);
+        if (supabaseEnabled()) return sbInsert(entry);
+        return Promise.resolve(localList());
+    }
+
     let runStartedAt = 0;
 
     const api = {
         sanitizeNick,
         formatTime,
+        apiEnabled,
         supabaseEnabled,
+        remoteEnabled,
         lastNick() {
             try { return sanitizeNick(localStorage.getItem(NICK_KEY) || ''); } catch (err) { return ''; }
         },
@@ -133,18 +186,20 @@
         },
         startedAt() { return runStartedAt; },
         list() {
-            if (!supabaseEnabled()) return Promise.resolve(localList());
-            return sbList().catch(() => localList());
+            if (!remoteEnabled()) return Promise.resolve({ rows: localList(), offline: false, remote: false });
+            return fetchRemoteList()
+                .then(rows => ({ rows, offline: false, remote: true }))
+                .catch(() => ({ rows: localList(), offline: true, remote: false }));
         },
         submit(entry) {
             const e = validEntry(entry);
-            if (!e) return api.list().then(rows => ({ rows, saved: 'none', remote: false }));
+            if (!e) return api.list().then(res => Object.assign({ saved: 'none' }, res));
             api.rememberNick(e.nick);
             const localRows = localSubmit(e);
-            if (!supabaseEnabled()) return Promise.resolve({ rows: localRows, saved: 'local', remote: false });
-            return sbInsert(e)
-                .then(rows => ({ rows, saved: 'remote', remote: true }))
-                .catch(() => ({ rows: localRows, saved: 'local', remote: false }));
+            if (!remoteEnabled()) return Promise.resolve({ rows: localRows, saved: 'local', remote: false, offline: false });
+            return insertRemote(e)
+                .then(rows => ({ rows, saved: 'remote', remote: true, offline: false }))
+                .catch(() => ({ rows: localRows, saved: 'local', remote: false, offline: true }));
         },
     };
 

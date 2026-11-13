@@ -158,11 +158,13 @@ const CFG = {
 
     // --- tablica wyników ---
     LEADERBOARD: {
-        SUPABASE_URL: '',           // np. https://xxxxxxxx.supabase.co  (puste = tylko localStorage)
+        API_URL: 'https://fibirun-scores-a3hea0bphtf2aaer.polandcentral-01.azurewebsites.net/api/scores',
+        SUPABASE_URL: '',           // opcjonalnie: https://xxxxxxxx.supabase.co (gdy API_URL puste)
         SUPABASE_ANON_KEY: '',      // publiczny klucz anon (NIE service_role)
         LIMIT: 20,                  // ile wyników trzymać / pobierać
         NICK_MAX: 12,
         SCORE_MAX: 999999,
+        TIME_MIN_MS: 1000,          // API odrzuca krótszy czas — clamp przed wysyłką
         TIME_MAX_MS: 86400000,      // 24 h
     },
 
@@ -2287,6 +2289,7 @@ class BoardScene extends Phaser.Scene {
         this.timeMs = (data && data.time_ms) || 0;
         this.highlight = data && data.highlight;     // {nick, score, time_ms}
         this.savedNote = '';
+        this.offline = false;
     }
 
     create() {
@@ -2492,16 +2495,17 @@ class BoardScene extends Phaser.Scene {
         const entry = { nick, score: this.score, time_ms: this.timeMs };
         const done = (res) => {
             this.highlight = entry;
-            this.savedNote = (res && res.saved === 'local' && window.FibiLeaderboard && FibiLeaderboard.supabaseEnabled())
+            this.savedNote = (res && res.saved === 'local' && res.offline)
                 ? 'ZAPISANO LOKALNIE (BRAK SIECI)' : '';
+            this.offline = !!(res && res.offline);
             this.mode = 'view';
             this.busy = false;
             this.clearUi();
             this.drawChrome();
-            this.buildList(res && res.rows);
+            this.buildList(res);
         };
         if (!window.FibiLeaderboard) { done({ rows: [entry], saved: 'none' }); return; }
-        FibiLeaderboard.submit(entry).then(done).catch(() => done({ rows: [entry], saved: 'local' }));
+        FibiLeaderboard.submit(entry).then(done).catch(() => done({ rows: [entry], saved: 'local', offline: true }));
     }
 
     skip() {
@@ -2522,12 +2526,14 @@ class BoardScene extends Phaser.Scene {
         const hdr = ' #  ' + 'NICK'.padEnd(12, ' ') + '  ' + 'PKT'.padStart(5, ' ') + '  CZAS';
         this.keep(pxText(this, W / 2, 48, hdr, { scale: 2, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(d));
         const wait = this.keep(pxText(this, W / 2, 140, 'CZEKAJ...', { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setDepth(d));
-        const render = (rows) => {
+        const render = (res) => {
             if (wait && wait.active) wait.destroy();
-            this.drawRows(rows || [], d);
+            const rows = Array.isArray(res) ? res : ((res && res.rows) || []);
+            if (res && !Array.isArray(res) && res.offline) this.offline = true;
+            this.drawRows(rows, d);
         };
         if (preloaded) render(preloaded);
-        else if (window.FibiLeaderboard) FibiLeaderboard.list().then(render).catch(() => render([]));
+        else if (window.FibiLeaderboard) FibiLeaderboard.list().then(render).catch(() => render({ rows: [], offline: true }));
         else render([]);
         this.keepBtn(makeButton(this, W / 2, 252, 180, 26, 'WSTECZ', () => this.close(), d));
         const tip = IS_TOUCH ? 'TAP WSTECZ' : 'ESC OR ENTER';
@@ -2538,27 +2544,28 @@ class BoardScene extends Phaser.Scene {
         const shown = (rows || []).slice(0, 10);
         if (!shown.length) {
             this.keep(pxText(this, W / 2, 140, 'BRAK WYNIKÓW', { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setDepth(d));
-            return;
+        } else {
+            const hi = this.highlight;
+            const fmt = window.FibiLeaderboard ? FibiLeaderboard.formatTime : (ms => '00:00');
+            const same = (e) => hi && e.nick === hi.nick && e.score === hi.score && e.time_ms === hi.time_ms;
+            // podświetl pierwsze trafienie (świeżo dodany wynik)
+            let marked = false;
+            shown.forEach((e, i) => {
+                const y = 64 + i * 18;
+                const isHi = !marked && same(e);
+                if (isHi) marked = true;
+                const col = isHi ? '#ffffff' : '#ffd040';
+                const sh = isHi ? '#8c1e14' : '#3a1008';
+                const line = String(i + 1).padStart(2, ' ') + '  ' + e.nick.padEnd(12, ' ') + '  ' +
+                    String(e.score).padStart(5, ' ') + '  ' + fmt(e.time_ms);
+                this.keep(pxText(this, W / 2, y, line, { scale: 2, color: col, shadow: sh }).setDepth(d));
+            });
         }
-        const hi = this.highlight;
-        const fmt = window.FibiLeaderboard ? FibiLeaderboard.formatTime : (ms => '00:00');
-        const same = (e) => hi && e.nick === hi.nick && e.score === hi.score && e.time_ms === hi.time_ms;
-        // podświetl pierwsze trafienie (świeżo dodany wynik)
-        let marked = false;
-        shown.forEach((e, i) => {
-            const y = 64 + i * 18;
-            const isHi = !marked && same(e);
-            if (isHi) marked = true;
-            const col = isHi ? '#ffffff' : '#ffd040';
-            const sh = isHi ? '#8c1e14' : '#3a1008';
-            const line = String(i + 1).padStart(2, ' ') + '  ' + e.nick.padEnd(12, ' ') + '  ' +
-                String(e.score).padStart(5, ' ') + '  ' + fmt(e.time_ms);
-            this.keep(pxText(this, W / 2, y, line, { scale: 2, color: col, shadow: sh }).setDepth(d));
-        });
-        const noteY = 64 + shown.length * 18 + 4;
+        const noteY = shown.length ? (64 + shown.length * 18 + 4) : 164;
         if (noteY <= 244) {
             if (this.savedNote) this.keep(pxText(this, W / 2, noteY, this.savedNote, { scale: 1, color: '#ff8080', shadow: '#400808' }).setDepth(d));
-            else if (window.FibiLeaderboard && FibiLeaderboard.supabaseEnabled()) {
+            else if (this.offline) this.keep(pxText(this, W / 2, noteY, 'OFFLINE', { scale: 1, color: '#ff8080', shadow: '#400808' }).setDepth(d));
+            else if (window.FibiLeaderboard && FibiLeaderboard.remoteEnabled()) {
                 this.keep(pxText(this, W / 2, noteY, 'WSPÓLNA TABLICA', { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(d));
             }
         }
