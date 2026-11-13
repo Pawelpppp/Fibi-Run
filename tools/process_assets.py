@@ -28,6 +28,8 @@ OUT = os.path.join(ROOT, 'assets', 'game')
 
 ARCHIVE_FRAMES = ['run_1', 'run_2', 'run_3', 'jump', 'attack']
 ARCHIVE_DIR = os.path.join(ROOT, 'assets', 'sprites')
+CASUAL_H_GAME = 60     # wysokość Arka casual (px) - zbliżona do Arka w zbroi (64 px)
+CASUAL_FRAMES = ['arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_stand']
 DOG_H_GAME = 28        # wysokość Fibi w grze (px) - wyraźnie mniejsza od Arka (64 px)
 DOG_FRAMES = ['fibi_walk_1', 'fibi_walk_2', 'fibi_stand']
 FACE_SRC = os.path.join(ROOT, 'assets', 'portraits', 'fibi_portrait_front.png')   # portret Fibi na ekranie powitalnym
@@ -147,6 +149,7 @@ def main():
     for n, im in zip(ARCHIVE_FRAMES, quantize(items)):
         im.save(os.path.join(OUT, f'arek_{n}.png'))
     process_title_face()
+    process_casual()
     copy_car()
     process_dog()
     write_bundle()
@@ -166,6 +169,32 @@ def process_title_face():
     im = im.crop(bbox(im))
     im.save(os.path.join(OUT, 'fibi_face.png'))
     print('fibi_face', im.size, 'alpha ok' if has_alpha else 'checkerboard removed')
+
+
+def process_casual():
+    """Arek casual (t-shirt, spodenki) do intro -> assets/game/arek_casual_*.png.
+    Sprite'y są już RGBA (160 px wysokości); wspólna skala -> CASUAL_H_GAME, stopy na dole,
+    klatki biegu w jednej szerokiej ramce, 'stand' osobno; wspólna paleta."""
+    cut = {}
+    for n in CASUAL_FRAMES:
+        im = Image.open(os.path.join(ARCHIVE_DIR, n + '.png'))
+        im = im.convert('RGBA') if im.mode == 'RGBA' and (np.array(im)[..., 3] == 0).any() else remove_checkerboard(im)
+        cut[n] = im.crop(bbox(im))
+    scale = CASUAL_H_GAME / max(c.height for c in cut.values())
+    run_w = max(round(cut[n].width * scale) for n in CASUAL_FRAMES if 'run' in n)
+    items = []
+    for n in CASUAL_FRAMES:
+        c = cut[n]
+        sw, sh = max(1, round(c.width * scale)), max(1, round(c.height * scale))
+        rgb, mask = to_game(c, (sw, sh))
+        fw = run_w if 'run' in n else sw
+        frame = Image.new('RGB', (fw, CASUAL_H_GAME)); fm = np.zeros((CASUAL_H_GAME, fw), bool)
+        x0, y0 = (fw - sw) // 2, CASUAL_H_GAME - sh
+        frame.paste(rgb, (x0, y0)); fm[y0:y0 + sh, x0:x0 + sw] = mask
+        items.append((frame, fm))
+    for n, im in zip(CASUAL_FRAMES, quantize(items, 48)):
+        im.save(os.path.join(OUT, n + '.png'))
+    print('casual frames', run_w, 'x', CASUAL_H_GAME)
 
 
 def process_dog():

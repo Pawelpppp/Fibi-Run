@@ -38,17 +38,20 @@ Pierwszy ekran po uruchomieniu gry:
 ## Intro (przerywnik)
 
 Krótka scenka po kliknięciu **START NEW GAME**, przed poziomem 1:
-1. Arek idzie spokojnie **w lewo** z psem na smyczy po szutrowej drodze.
+1. Arek – w wersji **casual (bez zbroi)** – idzie spokojnie **w lewo** z Fibi na smyczy po szutrowej drodze.
 2. Obok nich przejeżdża **ksiądz Kamil w samochodzie** (widać go przez szybę auta).
 3. Pies się płoszy, wyrywa i **ucieka w prawo**.
-4. Arek dobywa **miecza** i zaczyna **biec za psem w prawo** – startuje poziom 1.
+4. Arek **wyciąga zza pleców miecz i unosi go nad głowę**. Niebo ciemnieje, z nieba uderza **piorun** prosto w miecz.
+5. **Transformacja**: błysk, iskry i Arek w złotej zbroi (zamiast casualowego ubrania) – zaczyna **biec za psem w prawo** i startuje poziom 1.
 
 Jak to działa w grze (`IntroScene` w `game.js`, czasy i prędkości w `CFG` – sekcja „intro”):
-- Całość trwa ok. **9 s**, bez dialogów. Tło, droga i słońce są takie same jak na poziomie 1.
-- Arek (sprite obrócony w lewo) idzie w miejscu, a tło przewija się w prawo; pies idzie za nim na smyczy (linia pikseli od ręki Arka do obroży).
+- Całość trwa ok. **11 s**, bez dialogów. Tło, droga i słońce są takie same jak na poziomie 1.
+- Arek (casual, sprite obrócony w lewo) idzie w miejscu, a tło przewija się w prawo; pies idzie za nim na smyczy (linia pikseli od ręki Arka do obroży).
 - Samochód ksiądza Kamila przejeżdża z lewej do prawej, na dalszym pasie drogi (za Arkiem i psem).
 - Gdy auto mija psa, pies się płoszy (wykrzyknik, podskok), smycz pęka i pies ucieka w prawo poza ekran.
-- Arek staje, odwraca się, dobywa miecza (pozycja ataku) i biegnie za psem – potem płynnie startuje poziom 1.
+- Arek staje, odwraca się w prawo i wyciąga miecz zza pleców; miecz i ramię są rysowane osobno (w grafikach casual nie ma pozy z mieczem – **placeholder**). Miecz idzie w górę, niebo ciemnieje, piorun (pikselowa błyskawica z gałązką) uderza w czubek miecza, ekran błyska i się trzęsie.
+- Transformacja: biała sylwetka miga między ubraniem a zbroją, sypią się iskry, odsłania się złoty Arek (poza „skok” z `arek_jump`), po czym biegnie w prawo, a tło przyspiesza do prędkości poziomu 1.
+- Arek w intro używa grafik **casual** (`assets/sprites/arek_casual_*.png` → `assets/game/arek_casual_*.png`, 60 px wysokości, `tools/process_assets.py`). Uwaga: to wersja z czerwonym t-shirtem i spodenkami (nie bez koszulki).
 - **Pomijanie:** Spacja, Enter lub tap/klik w dowolnym miejscu (podpowiedź „SPACE - SKIP” / „TAP - SKIP” w rogu). Na adres z `?nointro` gra od razu zaczyna poziom 1.
 
 Grafiki:
@@ -71,13 +74,13 @@ Grafiki:
 - **Atak mieczem** – zabija potworki.
 
 ### Przeszkody i przeciwnicy
-- **Beczki** – trzeba je przeskoczyć.
+- **Beczki** – trzeba je przeskoczyć. Czasem (od 60 pkt, `DOUBLE_BARREL_CHANCE` w `CFG`) pojawiają się **dwie beczki**: **obok siebie** albo **jedna na drugiej** (wyższa przeszkoda – skok wzmocniony do `JUMP_VELOCITY: 420`, żeby zawsze dało się ją przeskoczyć).
 - **Potworek** – na razie jeden placeholder (zielony diablik, wygląd do ustalenia). Można go zabić mieczem.
 
 ### Punkty
 | Akcja                                   | Punkty |
 |-----------------------------------------|--------|
-| Przeskoczenie beczki bez dotknięcia     | +30    |
+| Przeskoczenie beczki bez dotknięcia     | +30 za każdą beczkę (dwie beczki = +60) |
 | Zabicie potworka mieczem                | +50 (wartość tymczasowa, do ustalenia) |
 
 ### Życia

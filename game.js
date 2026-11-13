@@ -23,7 +23,7 @@ const CFG = {
     EDGE_MARGIN: 20,        // ile px od krawędzi ekranu Arek może dojść (połowa jego szerokości)
 
     // --- skok ---
-    JUMP_VELOCITY: 400,     // prędkość początkowa skoku (px/s)
+    JUMP_VELOCITY: 420,     // prędkość początkowa skoku (px/s)
     GRAVITY: 700,           // grawitacja (px/s^2)
     JUMP_BUFFER: 0.12,      // s - wciśnięcie skoku tuż przed lądowaniem też działa
 
@@ -45,6 +45,11 @@ const CFG = {
     GAP_MIN: 220,           // minimalna odległość między przeszkodami
     GAP_MAX: 380,           // maksymalna odległość
     GAP_RAMP: 0.3,          // o ile (30%) odstępy maleją do końca poziomu
+    DOUBLE_BARREL_CHANCE: 0.3,  // szansa, że przeszkoda-beczka to dwie beczki (obok siebie albo jedna na drugiej)
+    DOUBLE_MIN_SCORE: 60,       // od ilu punktów mogą pojawiać się podwójne beczki
+    STACK_SHARE: 0.5,           // z podwójnych: tyle to beczka na beczce, reszta - dwie obok siebie
+    PAIR_SPACING: 20,           // odległość środków dwóch beczek obok siebie (px; beczka ma 24 px)
+    STACK_STEP: 26,             // o ile wyżej leży druga beczka (px; beczka ma 28 px, 2 px zakładki)
     MONSTER_CHANCE: 0.3,    // szansa, że przeszkoda to potworek (reszta: beczka)
     MONSTER_SPEED: 28,      // potworek idzie w lewo z tą prędkością (px/s)
     HEART_CHANCE: 0.14,     // szansa na serduszko w przerwie między przeszkodami
@@ -60,9 +65,12 @@ const CFG = {
     INTRO_CAR_SCALE: 0.58,     // skala auta (sprite 219x100) - dach ~ wzrost Arka (64 px); mniej = mniejsze auto
     INTRO_CAR_BOTTOM: 248,     // y kół samochodu (dalszy pas drogi, za Arkiem)
     INTRO_SCARE_TIME: 0.6,     // s - pies się płoszy, zanim zerwie smycz
-    INTRO_TURN_TIME: 0.4,      // s - Arek reaguje i odwraca się
-    INTRO_DRAW_TIME: 0.9,      // s - Arek dobywa miecza (pozycja ataku)
-    INTRO_CHASE_TIME: 2.0,     // s - Arek biegnie za psem, potem startuje poziom 1
+    INTRO_TURN_TIME: 0.6,      // s - Arek reaguje i odwraca się w prawo
+    INTRO_SWORD_TIME: 1.1,     // s - wyciąga miecz zza pleców i unosi go nad głowę
+    INTRO_HOLD_TIME: 0.35,     // s - chwila ciszy przed uderzeniem pioruna (niebo ciemnieje)
+    INTRO_STRIKE_TIME: 0.6,    // s - piorun z nieba uderza w miecz
+    INTRO_TRANSFORM_TIME: 0.9, // s - przemiana: błysk, iskry, zmiana na zbroję
+    INTRO_CHASE_TIME: 1.8,     // s - Arek w zbroi biegnie za psem, potem startuje poziom 1
     INTRO_DOG_SPEED: 210,      // px/s - jak szybko ucieka pies
     INTRO_SKIP_GUARD: 0.4,     // s - tyle ignorujemy "skip", żeby klik START nie pominął intra
 
@@ -335,6 +343,21 @@ function makeTextures(scene) {
             }
         }
     });
+    /* --- miecz (intro): ostrzem do góry, 13x47 --- */
+    canvasTex(scene, 'sword', 13, 47, (c) => {
+        rect(c, 6, 0, 1, 1, 'rgb(240,244,255)');
+        rect(c, 5, 1, 3, 1, 'rgb(240,244,255)');
+        rect(c, 5, 2, 3, 32, 'rgb(214,222,238)');
+        rect(c, 5, 2, 1, 32, 'rgb(250,252,255)');
+        rect(c, 7, 2, 1, 32, 'rgb(130,142,168)');
+        rect(c, 6, 4, 1, 26, 'rgb(170,182,206)');
+        rect(c, 1, 34, 11, 3, 'rgb(255,208,64)');
+        rect(c, 1, 36, 11, 1, 'rgb(150,100,20)');
+        rect(c, 5, 37, 3, 7, 'rgb(120,64,30)');
+        rect(c, 5, 38, 1, 5, 'rgb(160,96,50)');
+        rect(c, 4, 44, 5, 3, 'rgb(255,208,64)');
+        rect(c, 4, 46, 5, 1, 'rgb(150,100,20)');
+    });
     canvasTex(scene, 'dot', 3, 3, (c) => rect(c, 0, 0, 3, 3, '#fff'));
 
     /* --- przyciski dotykowe 44x44 --- */
@@ -431,7 +454,7 @@ class BootScene extends Phaser.Scene {
     constructor() { super('Boot'); }
     preload() {
         this.cameras.main.setBackgroundColor('#0c0818');
-        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'fibi_face', 'car_1', 'car_2', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand'];
+        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'fibi_face', 'car_1', 'car_2', 'arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_stand', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand'];
         names.forEach(n => {
             // data-URI (assets/game/assets.js) działa też z file://; fallback: zwykłe pliki
             const src = (window.AREK_ASSETS && window.AREK_ASSETS[n]) || `assets/game/${n}.png`;
@@ -443,6 +466,10 @@ class BootScene extends Phaser.Scene {
         this.anims.create({
             key: 'run', frameRate: 9, repeat: -1,
             frames: ['arek_run_1', 'arek_run_2', 'arek_run_3'].map(key => ({ key })),
+        });
+        this.anims.create({
+            key: 'casual_run', frameRate: 9, repeat: -1,
+            frames: ['arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3'].map(key => ({ key })),
         });
         this.anims.create({ key: 'car_drive', frameRate: 8, repeat: -1, frames: [{ key: 'car_1' }, { key: 'car_2' }] });
         this.anims.create({ key: 'dog_walk', frameRate: 4, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
@@ -499,8 +526,9 @@ class TitleScene extends Phaser.Scene {
 }
 
 /* =====================================================================
-   INTRO: Arek spaceruje w lewo z psem, przejeżdża ksiądz Kamil, pies ucieka,
-   Arek dobywa miecza i biegnie za nim w prawo -> poziom 1
+   INTRO: Arek (casual, bez zbroi) spaceruje w lewo z Fibi, przejeżdża ksiądz Kamil,
+   pies ucieka, Arek wyciąga zza pleców miecz, unosi go, piorun z nieba -> przemiana
+   w Arka w zbroi i bieg w prawo -> poziom 1
    ===================================================================== */
 class IntroScene extends Phaser.Scene {
     constructor() { super('Intro'); }
@@ -513,14 +541,16 @@ class IntroScene extends Phaser.Scene {
         this.phaseT = 0;
         this.finished = false;
         this.dogVx = 0;
+        this.boltT = 0;
         this.bg = buildBackground(this);
 
         const ax = CFG.INTRO_AREK_X, gy = CFG.GROUND_Y;
-        this.arek = this.add.sprite(ax, gy, 'arek_run_1').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
-        this.arek.play('run');
+        this.arek = this.add.sprite(ax, gy, 'arek_casual_run_1').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
+        this.arek.play('casual_run');
         this.arek.anims.timeScale = 0.4;       // powolny spacer
         this.dog = this.add.sprite(ax + CFG.INTRO_DOG_DIST, gy + 1, 'fibi_stand').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
         this.dog.play('dog_walk');
+
         // auto zmniejszone wygładzonym skalowaniem do nowej tekstury (ostre piksele przy skali 1:1)
         const cs = CFG.INTRO_CAR_SCALE, sf = (n) => {
             const key = `car_${n}_s${cs}`;
@@ -539,11 +569,18 @@ class IntroScene extends Phaser.Scene {
             this.anims.create({ key: 'car_drive_s', frameRate: 8, repeat: -1, frames: carKeys.map(key => ({ key })) });
         }
         this.carHalf = Math.round(109.5 * cs);    // połowa szerokości auta
-        this.car = this.add.sprite(-this.carHalf - 20, CFG.INTRO_CAR_BOTTOM, carKeys[0]).setOrigin(0.5, 1).setDepth(5).setVisible(false);
+        this.car = this.add.sprite(-this.carHalf - 20, CFG.INTRO_CAR_BOTTOM, carKeys[0]).setOrigin(0.5, 1).setDepth(4.8).setVisible(false);
         this.car.play('car_drive_s');
-        this.slash = this.add.image(0, 0, 'slash').setOrigin(0, 0.5).setDepth(7).setVisible(false);
+
         this.leash = this.add.graphics().setDepth(6.5);
-        this.leashState = 'taut';              // 'taut' -> 'hang' po zerwaniu
+        this.leashState = 'taut';              // 'taut' -> 'hang' po zerwaniu -> 'gone'
+
+        // miecz zza pleców + ramię, burza (przyciemnienie), piorun i błysk
+        this.sword = this.add.image(0, 0, 'sword').setOrigin(0.5, 0.85).setDepth(5.9).setVisible(false);
+        this.armG = this.add.graphics().setDepth(6.6);
+        this.dim = this.add.rectangle(0, 0, W, H, 0x0a0620).setOrigin(0).setDepth(4.9).setAlpha(0);
+        this.boltG = this.add.graphics().setDepth(18);
+        this.flashRect = this.add.rectangle(0, 0, W, H, 0xffffff).setOrigin(0).setDepth(19).setAlpha(0);
 
         // podpowiedź i pomijanie (Spacja / Enter / tap)
         const hint = IS_TOUCH ? 'TAP - SKIP' : 'SPACE - SKIP';
@@ -570,6 +607,7 @@ class IntroScene extends Phaser.Scene {
         const dt = Math.min(delta, 50) / 1000;
         this.t += dt; this.phaseT += dt;
         const arek = this.arek, dog = this.dog, car = this.car, gy = CFG.GROUND_Y;
+        const P = this.phaseT;
 
         // --- samochód ---
         if (this.t >= CFG.INTRO_CAR_START && car.x < W + this.carHalf + 20) {
@@ -590,7 +628,7 @@ class IntroScene extends Phaser.Scene {
             }
         } else if (this.phase === 'scare') {
             dog.x += Math.sin(this.t * 90) * 0.6;                 // dygocze
-            if (this.phaseT >= CFG.INTRO_SCARE_TIME) {            // smycz pęka, pies w nogi
+            if (P >= CFG.INTRO_SCARE_TIME) {                      // smycz pęka, pies w nogi
                 this.setPhase('turn');
                 this.leashState = 'hang';
                 this.leashSnapT = 0;
@@ -598,22 +636,48 @@ class IntroScene extends Phaser.Scene {
                 dog.setFlipX(false); dog.play('dog_run'); dog.y = gy + 1;
                 this.dogVx = 40;
                 arek.anims.stop();                                // Arek staje
-                this.bubble(arek.x, arek.y - 76, '?!', '#ffffff');
+                arek.setTexture('arek_casual_stand');
+                this.bubble(arek.x, arek.y - 74, '?!', '#ffffff');
             }
         } else if (this.phase === 'turn') {
-            if (this.phaseT >= CFG.INTRO_TURN_TIME) {
-                this.setPhase('draw');
-                arek.setFlipX(false).setTexture('arek_attack');   // dobywa miecza
-                this.slashT = 0.5;
+            if (P > CFG.INTRO_TURN_TIME * 0.5) arek.setFlipX(false);   // odwraca się w prawo, za psem
+            if (P >= CFG.INTRO_TURN_TIME) {
+                this.setPhase('sword');
+                this.leashState = 'gone';
+                this.sword.setVisible(true);
+                this.tweens.add({ targets: this.dim, alpha: 0.5, duration: (CFG.INTRO_SWORD_TIME + CFG.INTRO_HOLD_TIME) * 1000 });
             }
-        } else if (this.phase === 'draw') {
-            if (this.phaseT >= CFG.INTRO_DRAW_TIME) {
+        } else if (this.phase === 'sword') {
+            if (P >= CFG.INTRO_SWORD_TIME) this.setPhase('hold');
+        } else if (this.phase === 'hold') {
+            if (P >= CFG.INTRO_HOLD_TIME) {
+                this.setPhase('strike');
+                this.strike();
+            }
+        } else if (this.phase === 'strike') {
+            if (P >= CFG.INTRO_STRIKE_TIME) {
+                this.setPhase('transform');
+                this.boltG.clear();
+                this.transformStart();
+            }
+        } else if (this.phase === 'transform') {
+            this.transformUpdate(P);
+            if (P >= CFG.INTRO_TRANSFORM_TIME) {
                 this.setPhase('chase');
-                arek.play('run');
-                arek.anims.timeScale = 1;
+                arek.setScale(1).clearTint();
+                arek.play('run'); arek.anims.timeScale = 1;
             }
         } else if (this.phase === 'chase') {
-            if (this.phaseT >= CFG.INTRO_CHASE_TIME) this.finish();
+            if (P >= CFG.INTRO_CHASE_TIME) this.finish();
+        }
+
+        // --- miecz: wyciągany zza pleców i unoszony nad głowę ---
+        this.updateSword();
+
+        // --- piorun (migotanie) ---
+        if (this.phase === 'strike') {
+            this.boltT -= dt;
+            if (this.boltT <= 0) { this.boltT = 0.06; this.drawBolt(); }
         }
 
         // --- pies ucieka w prawo ---
@@ -623,27 +687,131 @@ class IntroScene extends Phaser.Scene {
             if (dog.x > W + 40) dog.setVisible(false);
         }
 
-        // --- przewijanie tła: spacer w lewo -> stop -> bieg w prawo ---
+        // --- przewijanie tła: spacer w lewo -> stop -> (burza) -> bieg w prawo ---
         let target = -CFG.INTRO_WALK_SPEED;
-        if (this.phase === 'turn' || this.phase === 'draw') target = 0;
+        if (['turn', 'sword', 'hold', 'strike', 'transform'].includes(this.phase)) target = 0;
         if (this.phase === 'chase') target = CFG.SCROLL_SPEED;
         if (this.phase === 'scare') target = -CFG.INTRO_WALK_SPEED * 0.4;
         this.scroll += (target - this.scroll) * Math.min(1, dt * 5);
         this.camX += this.scroll * dt;
         this.bg.update(this.camX);
 
-        // --- smuga miecza ---
-        if (this.slashT > 0) {
-            this.slashT -= dt;
-            this.slash.setVisible(true).setPosition(arek.x + 6, arek.y - 30).setAlpha(Math.min(1, this.slashT / 0.3));
-        } else this.slash.setVisible(false);
-
         this.drawLeash(dt);
+    }
+
+    /** Pozycja rękojeści miecza względem Arka (stóp): zza pleców -> przed siebie -> nad głowę. */
+    swordPose() {
+        const keys = [   // [p, dx, dy, kąt°]
+            [0.00, -5, -30, -62], [0.35, -1, -44, -35], [0.60, 5, -52, -10], [1.00, 9, -70, 0],
+        ];
+        const p = Phaser.Math.Clamp(this.phase === 'sword' ? this.phaseT / CFG.INTRO_SWORD_TIME : 1, 0, 1);
+        let k = 1; while (k < keys.length - 1 && p > keys[k][0]) k++;
+        const A = keys[k - 1], B = keys[k], u = Phaser.Math.Clamp((p - A[0]) / (B[0] - A[0]), 0, 1);
+        const e = u * u * (3 - 2 * u);
+        return { dx: A[1] + (B[1] - A[1]) * e, dy: A[2] + (B[2] - A[2]) * e, ang: A[3] + (B[3] - A[3]) * e, p };
+    }
+    updateSword() {
+        const g = this.armG, sw = this.sword, arek = this.arek;
+        g.clear();
+        if (!sw.visible) return;
+        const pose = this.swordPose();
+        const hx = arek.x + pose.dx, hy = arek.y + pose.dy;
+        sw.setPosition(Math.round(hx), Math.round(hy)).setAngle(pose.ang);
+        sw.setDepth(pose.p < 0.3 ? 5.9 : 6.2);                    // najpierw zza pleców, potem przed Arkiem
+        if (this.phase === 'hold' || this.phase === 'strike') sw.y += Math.round(Math.sin(this.t * 60));   // drży
+        // ramię: od barku do rękojeści (3 px, kolor skóry)
+        if (pose.p >= 0.25) {
+            const sx = arek.x + 3, sy = arek.y - 40;
+            for (let i = 0; i <= 24; i++) {
+                const u = i / 24, x = Math.round(sx + (hx - sx) * u), y = Math.round(sy + (hy - sy) * u);
+                g.fillStyle(0xd98f5e, 1).fillRect(x - 1, y - 1, 3, 3);
+            }
+        }
+        this.swordTip = { x: hx + Math.sin(Phaser.Math.DegToRad(pose.ang)) * 40, y: hy - Math.cos(Phaser.Math.DegToRad(pose.ang)) * 40 };
+    }
+
+    strike() {
+        const cam = this.cameras.main;
+        cam.flash(280, 255, 255, 255);
+        cam.shake(450, 0.01);
+        this.flashRect.setAlpha(0.9);
+        this.tweens.add({ targets: this.flashRect, alpha: 0, duration: 200 });
+        this.boltT = 0;
+        this.drawBolt();
+        this.sparkle(this.swordTip.x, this.swordTip.y, 14, [0xffffff, 0xbfe0ff, 0x6a8cff]);
+    }
+    drawBolt() {
+        const g = this.boltG, tip = this.swordTip;
+        g.clear();
+        const pts = [[Phaser.Math.Between(-20, 20) + tip.x, -4]];
+        const n = Math.ceil(tip.y / 18);
+        for (let i = 1; i <= n; i++) {
+            const y = Math.min(tip.y, i * 18), j = 1 - i / n;
+            pts.push([i === n ? tip.x : tip.x + (Math.random() - 0.5) * 46 * j + (Math.random() - 0.5) * 6, y]);
+        }
+        const draw = (path, w, col, al) => {
+            g.fillStyle(col, al);
+            for (let i = 1; i < path.length; i++) {
+                const [x0, y0] = path[i - 1], [x1, y1] = path[i], steps = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / 2));
+                for (let k = 0; k <= steps; k++) {
+                    const u = k / steps;
+                    g.fillRect(Math.round(x0 + (x1 - x0) * u - w / 2), Math.round(y0 + (y1 - y0) * u), w, 2);
+                }
+            }
+        };
+        // gałązka pioruna
+        const m = pts[Math.floor(pts.length / 2)], br = [m, [m[0] + (Math.random() < 0.5 ? -26 : 26), m[1] + 26], [m[0] + (Math.random() < 0.5 ? -34 : 34), m[1] + 48]];
+        [pts, br].forEach((path, idx) => {
+            const k = idx ? 0.6 : 1;
+            draw(path, Math.round(11 * k), 0x4a6cff, 0.4);
+            draw(path, Math.round(6 * k), 0xbfe0ff, 0.85);
+            draw(path, Math.max(2, Math.round(3 * k)), 0xffffff, 1);
+        });
+        // błysk w miejscu uderzenia
+        g.fillStyle(0xffffff, 0.9).fillRect(Math.round(tip.x) - 7, Math.round(tip.y) - 3, 14, 6);
+        g.fillStyle(0xffffff, 0.5).fillRect(Math.round(tip.x) - 12, Math.round(tip.y) - 1, 24, 2);
+    }
+
+    sparkle(x, y, n, colors) {
+        for (let i = 0; i < n; i++) {
+            const d = this.add.image(x, y, 'dot').setTint(Phaser.Utils.Array.GetRandom(colors)).setDepth(17)
+                .setScale(Math.random() < 0.35 ? 2 : 1);
+            const ang = Math.random() * Math.PI * 2, r = 14 + Math.random() * 40;
+            this.tweens.add({
+                targets: d, x: x + Math.cos(ang) * r, y: y + Math.sin(ang) * r - 14, alpha: 0,
+                duration: 450 + Math.random() * 450, onComplete: () => d.destroy(),
+            });
+        }
+    }
+
+    transformStart() {
+        this.arek.setTintFill(0xffffff);
+        this.revealed = false;
+        this.tweens.add({ targets: this.dim, alpha: 0, duration: 500 });
+        this.tweens.add({ targets: this.sword, alpha: 0, duration: 250 });
+    }
+    transformUpdate(P) {
+        const arek = this.arek, cx = arek.x, cy = arek.y - 30;
+        if (Math.random() < 0.7) this.sparkle(cx + Phaser.Math.Between(-14, 14), cy + Phaser.Math.Between(-28, 28), 2, [0xffffff, 0xffd040, 0xfff0a0]);
+        if (P < CFG.INTRO_TRANSFORM_TIME * 0.5) {
+            // sylwetka miga biało między ubraniem a zbroją
+            const alt = Math.floor(P * 16) % 2;
+            arek.setTexture(alt ? 'arek_jump' : 'arek_casual_stand').setTintFill(0xffffff);
+        } else if (!this.revealed) {
+            this.revealed = true;                                   // odsłonięcie: złota zbroja
+            arek.setTexture('arek_jump').clearTint().setScale(1.18);
+            this.sword.setVisible(false);
+            this.armG.clear();
+            this.cameras.main.flash(220, 255, 240, 180);
+            this.sparkle(cx, cy, 30, [0xffd040, 0xffffff, 0xff7040]);
+            this.tweens.add({ targets: arek, scale: 1, duration: 260, ease: 'Back.out' });
+        }
     }
 
     drawLeash(dt) {
         const g = this.leash, arek = this.arek, dog = this.dog;
         g.clear();
+        if (this.leashState === 'gone') return;
         const hx = Math.round(arek.x + (arek.flipX ? 11 : -11)), hy = Math.round(arek.y - 25);
         const pts = [];
         const line = (x0, y0, x1, y1, sag) => {
@@ -808,7 +976,10 @@ class PlayScene extends Phaser.Scene {
         while (this.nextObstacleX < this.camX + W + 100) {
             const x = this.nextObstacleX;
             const first = this.barrels.length + this.monsters.length === 0 && x === CFG.FIRST_OBSTACLE_X;
-            if (!first && Math.random() < CFG.MONSTER_CHANCE) this.spawnMonster(x); else this.spawnBarrel(x);
+            if (!first && Math.random() < CFG.MONSTER_CHANCE) this.spawnMonster(x);
+            else if (!first && this.score >= CFG.DOUBLE_MIN_SCORE && Math.random() < CFG.DOUBLE_BARREL_CHANCE) {
+                this.spawnBarrels(x, Math.random() < CFG.STACK_SHARE ? 'stack' : 'pair');
+            } else this.spawnBarrels(x, 'single');
             this.sinceHeart++;
             const ramp = 1 - CFG.GAP_RAMP * Math.min(1, this.score / CFG.GOAL_SCORE);
             const gap = Phaser.Math.Between(CFG.GAP_MIN, CFG.GAP_MAX) * ramp;
@@ -819,9 +990,17 @@ class PlayScene extends Phaser.Scene {
             this.nextObstacleX += Math.max(gap, 200);
         }
     }
-    spawnBarrel(x) {
-        const s = this.add.image(x, CFG.GROUND_Y + 2, 'barrel').setOrigin(0.5, 1).setDepth(5);
-        this.barrels.push({ s, wx: x, hw: 9, h: 24, passed: false, touched: false });
+    /** Beczki jako grupa: 'single', 'pair' (dwie obok siebie) albo 'stack' (jedna na drugiej).
+        Punkty (POINTS_BARREL za każdą beczkę) dostaje się za całą grupę po jej przeskoczeniu. */
+    spawnBarrels(x, kind) {
+        const grp = { members: [], touched: false, scored: false };
+        const parts = kind === 'pair' ? [[0, 0], [CFG.PAIR_SPACING, 0]] : kind === 'stack' ? [[0, 0], [0, 1]] : [[0, 0]];
+        parts.forEach(([dx, lvl]) => {
+            const s = this.add.image(x + dx, CFG.GROUND_Y + 2 - lvl * CFG.STACK_STEP, 'barrel').setOrigin(0.5, 1).setDepth(5 + lvl * 0.1);
+            const b = { s, wx: x + dx, hw: 9, h: 24, lvl, passed: false, grp };
+            grp.members.push(b); this.barrels.push(b);
+        });
+        grp.kind = kind;
     }
     spawnMonster(x) {
         const s = this.add.sprite(x, CFG.GROUND_Y + 2, 'monster_1').setOrigin(0.5, 1).setDepth(5);
@@ -922,12 +1101,15 @@ class PlayScene extends Phaser.Scene {
         }
         for (let i = this.barrels.length - 1; i >= 0; i--) {
             const b = this.barrels[i];
-            const box = { l: b.wx - b.hw, r: b.wx + b.hw, t: CFG.GROUND_Y - b.h, b: CFG.GROUND_Y };
-            if (PlayScene.hit(body, box)) { b.touched = true; this.hurt(); }
-            if (!b.passed && !b.touched && b.wx + b.hw < a.x - 8) {
-                b.passed = true;
-                this.stats.barrelsPassed++;
-                this.addScore(CFG.POINTS_BARREL, a.x, a.y - 60);
+            const bot = CFG.GROUND_Y - b.lvl * CFG.STACK_STEP;
+            const box = { l: b.wx - b.hw, r: b.wx + b.hw, t: bot - b.h, b: bot };
+            if (PlayScene.hit(body, box)) { b.grp.touched = true; this.hurt(); }
+            if (!b.passed && b.wx + b.hw < a.x - 8) b.passed = true;
+            const g = b.grp;
+            if (!g.scored && !g.touched && g.members.every(m => m.passed)) {
+                g.scored = true;
+                this.stats.barrelsPassed += g.members.length;
+                this.addScore(CFG.POINTS_BARREL * g.members.length, a.x, a.y - 60);
                 if (this.state !== 'play') return;
             }
             if (b.wx < this.camX - 60) { b.s.destroy(); this.barrels.splice(i, 1); }
