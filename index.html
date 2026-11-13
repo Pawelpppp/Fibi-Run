@@ -3,20 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>ArekRun</title>
+    <link rel="icon" href="data:,">
     <style>
-        body {
+        html, body {
             margin: 0;
             padding: 0;
-            background: #111;
+            width: 100%;
+            height: 100%;
+            background: #0c0818;
             overflow: hidden;
             touch-action: none;
             -webkit-user-select: none;
             user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
         }
         #game-container {
+            position: fixed;
+            inset: 0;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -24,12 +34,47 @@
         canvas {
             image-rendering: pixelated;
             image-rendering: crisp-edges;
+            outline: none;
+        }
+        /* podpowiedź "obróć telefon" - tylko pionowo na małych ekranach */
+        #rotate-hint {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            background: #1a1030;
+            color: #ffd040;
+            font-family: monospace;
+            font-weight: bold;
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 24px;
+            font-size: 20px;
+            line-height: 1.5;
+        }
+        #rotate-hint .icon {
+            font-size: 64px;
+            display: inline-block;
+            animation: rot 2s ease-in-out infinite;
+        }
+        @keyframes rot { 0%, 20% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+        @media (orientation: portrait) and (max-width: 900px) {
+            #rotate-hint { display: flex; }
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 </head>
 <body>
     <div id="game-container"></div>
+    <div id="rotate-hint">
+        <div class="icon">&#128241;</div>
+        <div>Obróć telefon poziomo,<br>aby zagrać w ArekRun</div>
+    </div>
+    <noscript>ArekRun wymaga włączonego JavaScriptu.</noscript>
+    <!-- grafiki jako data-URI (działa też z file://); generowane przez tools/process_assets.py -->
+    <script src="assets/game/assets.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

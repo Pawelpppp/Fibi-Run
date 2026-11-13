@@ -28,9 +28,9 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – reklama/gra 16-bit
 ## Ekran powitalny
 
 Pierwszy ekran po uruchomieniu gry:
-- Na środku duży napis **Arek Run**.
-- Twarz głównego bohatera z assetów (`assets/portraits/face_portrait.png`).
-- Pod spodem przycisk **START NEW GAME**, który rozpoczyna poziom 1.
+- Układ: **AREK [twarz] RUN** – słowo „AREK” po lewej, twarz głównego bohatera na środku (w złoto-czerwonej ramce), słowo „RUN” po prawej.
+- Twarz z assetów (`assets/portraits/face_portrait.png`, w grze przetworzona do `assets/game/face.png`).
+- Pod spodem czerwony przycisk **START NEW GAME** (klik / tap, Spacja lub Enter), który rozpoczyna poziom 1.
 
 ---
 
@@ -48,13 +48,13 @@ Pierwszy ekran po uruchomieniu gry:
 
 ### Przeszkody i przeciwnicy
 - **Beczki** – trzeba je przeskoczyć.
-- **Potworek** – na razie jeden, dowolny stworek (wygląd do ustalenia). Można go zabić mieczem.
+- **Potworek** – na razie jeden placeholder (zielony diablik, wygląd do ustalenia). Można go zabić mieczem.
 
 ### Punkty
 | Akcja                                   | Punkty |
 |-----------------------------------------|--------|
 | Przeskoczenie beczki bez dotknięcia     | +30    |
-| Zabicie potworka mieczem                | do ustalenia |
+| Zabicie potworka mieczem                | +50 (wartość tymczasowa, do ustalenia) |
 
 ### Życia
 - Na start gracz ma **1 życie**.
@@ -64,7 +64,7 @@ Pierwszy ekran po uruchomieniu gry:
 
 ### Tło
 - Szutrowa droga na pierwszym planie.
-- Z tyłu co jakiś czas mijamy elementy tła w stylu 16-bit pixel art (do ustalenia, co dokładnie).
+- Z tyłu zachód słońca, wzgórza i co jakiś czas mijane **drzewa** w stylu 16-bit pixel art (drzewa to wybór tymczasowy – do ustalenia, co dokładnie).
 
 ---
 
@@ -74,7 +74,7 @@ Pierwszy ekran po uruchomieniu gry:
 | Przyspiesz             | Strzałka →     | przycisk →     |
 | Zwolnij                | Strzałka ←     | przycisk ←     |
 | Skok                   | Spacja         | przycisk skok  |
-| Atak mieczem           | Alt            | przycisk atak  |
+| Atak mieczem           | Alt (zapasowo X) | przycisk atak  |
 
 ---
 
@@ -86,7 +86,9 @@ Pierwszy ekran po uruchomieniu gry:
 - Bazowa rozdzielczość: **568×320** (mały iPhone SE w poziomie)
 - Skala: `Phaser.Scale.FIT` – dopasowanie do ekranu
 - Przyciski dotykowe na telefonie
-- Uruchomienie: otwórz `index.html` w przeglądarce (na telefonie w poziomie)
+- Uruchomienie: otwórz `index.html` w przeglądarce (na telefonie w poziomie) albo uruchom lokalny serwer: `python3 -m http.server` i wejdź na `http://localhost:8000`
+- Phaser 3 ładowany z CDN (jsDelivr), więc potrzebny jest internet
+- Wszystkie stałe (prędkości, punkty, odstępy przeszkód) są na samej górze `game.js` w obiekcie `CFG`
 
 ---
 
@@ -106,6 +108,10 @@ assets/
 │   ├── ksiadz_kamil_stand.png        # 55×160, stoi (+ _x4 podgląd)
 │   ├── ksiadz_kamil_walk_1.png       # 79×160, chód klatka 1 (+ _x4 podgląd)
 │   └── ksiadz_kamil_walk_2.png       # 82×160, chód klatka 2 (+ _x4 podgląd)
+├── game/                             # przetworzone pod grę (tools/process_assets.py)
+│   ├── arek_run_1..3.png, arek_jump.png, arek_attack.png
+│   ├── face.png
+│   └── assets.js                     # te same PNG jako data-URI (działa z file://)
 └── portraits/
     ├── dialogue_portrait.png
     ├── face_portrait.png
@@ -116,7 +122,9 @@ Pliki `*_x4.png` to te same grafiki powiększone 4× (nearest neighbor) do podgl
 
 Wszystkie grafiki mają transparentne tło i są w stylu 16-bit.
 
-**Do zrobienia:** beczka, potworek, serduszko, szutrowa droga, elementy tła, UI (punkty, życia).
+**Przetworzone grafiki do gry** (`assets/game/`, wygenerowane skryptem `tools/process_assets.py`): oryginały mają namalowaną szachownicę zamiast przezroczystości i są bardzo duże, więc skrypt usuwa tło, przycina i zmniejsza je do rozmiaru gry (oryginały zostają bez zmian). Beczka, potworek, serduszko, droga, tło i przyciski dotykowe są rysowane w kodzie (`game.js`).
+
+**Do zrobienia:** docelowy wygląd potworka, własne grafiki beczki i tła, dźwięk.
 
 ---
 
