@@ -22,6 +22,7 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – reklama/gra 16-bit
 |--------|------|------|
 | **Arek** | bohater | okulary, broda, złota zbroja z mieczem |
 | **Ksiądz Kamil** | główny antagonista | rude krótkie włosy (buzz cut), niebieskie oczy, złośliwy szeroki uśmiech, czarna sutanna z koloratką, czarny plecak |
+| **Fibi** | pies | mały czarno-brązowy kundelek, ciemne podpalane futro, brązowe łapy i policzki, siwa pierś, oklapnięte uszy |
 
 ---
 
@@ -107,7 +108,10 @@ assets/
 │   ├── front_full.png
 │   ├── ksiadz_kamil_stand.png        # 55×160, stoi (+ _x4 podgląd)
 │   ├── ksiadz_kamil_walk_1.png       # 79×160, chód klatka 1 (+ _x4 podgląd)
-│   └── ksiadz_kamil_walk_2.png       # 82×160, chód klatka 2 (+ _x4 podgląd)
+│   ├── ksiadz_kamil_walk_2.png       # 82×160, chód klatka 2 (+ _x4 podgląd)
+│   ├── fibi_stand.png                # 89×72, stoi (+ _x4 podgląd)
+│   ├── fibi_walk_1.png               # 117×72, chód klatka 1 (+ _x4 podgląd)
+│   └── fibi_walk_2.png               # 113×72, chód klatka 2 (+ _x4 podgląd)
 ├── game/                             # przetworzone pod grę (tools/process_assets.py)
 │   ├── arek_run_1..3.png, arek_jump.png, arek_attack.png
 │   ├── face.png
@@ -115,7 +119,8 @@ assets/
 └── portraits/
     ├── dialogue_portrait.png
     ├── face_portrait.png
-    └── ksiadz_kamil_portrait_front.png  # 192×192, portret do dialogów (+ _x4 podgląd)
+    ├── ksiadz_kamil_portrait_front.png  # 192×192, portret do dialogów (+ _x4 podgląd)
+    └── fibi_portrait_front.png          # 192×192, portret do dialogów (+ _x4 podgląd)
 ```
 
 Pliki `*_x4.png` to te same grafiki powiększone 4× (nearest neighbor) do podglądu.
