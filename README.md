@@ -30,6 +30,7 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 |--------|------|------|
 | **Arek** | bohater | okulary, broda; w grze złota zbroja z peleryną i mieczem, w intro wersja casual |
 | **Ksiądz Kamil** | antagonista / boss | rude krótkie włosy, czarna sutanna, jeździ czerwonym hatchbackiem, rzuca krzyżykami |
+| **Rafał ministrant** | pomocnik Kamila | ministrant w białej komży na czarnej sutannie, jasnobrązowy jeżyk, blada szczupła twarz, charakterystyczny dzióbek (grafiki gotowe, jeszcze niepodpięte w grze) |
 | **Fibi** | pies | mały czarno-brązowy kundelek (portret na ekranie tytułowym, w intro i w arenie) |
 
 ## Przebieg gry
@@ -159,8 +160,12 @@ assets/
 │   ├── arek_jump_1..5.png          # zbroja: skok 5 faz (w tym uniesiony miecz)
 │   │                   #   utrata życia – Kamil mija gracza i się śmieje (jeszcze niepodpięte w grze):
 │   ├── ksiadz_kamil_laugh_walk_1..4.png  # Kamil idzie w prawo, śmieje się, głowa do gracza (75–78×160), cykl 4 klatek
-│   └── ksiadz_kamil_bubble_haha.png      # dymek „HA HA!” (96×50, ogonek w lewo-dół; rysowany pikselowo)
+│   ├── ksiadz_kamil_bubble_haha.png      # dymek „HA HA!” (96×50, ogonek w lewo-dół; rysowany pikselowo)
+│   │                   #   Rafał ministrant (jeszcze niepodpięty w grze):
+│   ├── rafal_ministrant_stand.png        # stoi, w prawo (53×160)
+│   └── rafal_ministrant_walk_1..4.png    # chód, 4 klatki (89/58/85/90×160)
 ├── portraits/          # portrety do dialogów (Fibi, Kamil, ...)
+│   └── rafal_ministrant_portrait_front.png  # Rafał ministrant (192×192)
 └── game/               # przetworzone sprite'y do gry + assets.js (data-URI)
 ```
 
