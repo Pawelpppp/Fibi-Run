@@ -118,6 +118,15 @@ Grafiki:
 
 ---
 
+## Animacja biegu i chodu
+
+- **Cykl biegu Arka:** ping-pong **1-2-3-2** (wykrok – mijanie – wykrok – mijanie) zamiast 1-2-3 (dawny skok z klatki 3 prosto na 1 dawał „zacięcie”). Tempo: `CFG.RUN_FPS` (10 kl./s przy prędkości 80 px/s), skalowane prędkością Arka względem podłoża (`RUN_TIMESCALE_MIN/MAX`) – szybszy bieg (→) = szybsze nogi, wolniejszy (←) = wolniejsze; w arenie boss-fight też zależy od `BOSS_HERO_SPEED`.
+- **Wyrównanie klatek** (`tools/process_assets.py`, `align_set`): wszystkie pozy Arka (bieg 1–3, skok, atak) i Arek casual mają **wspólną ramkę**, **środek głowy w tej samej kolumnie** (ramka symetryczna wokół kotwicy, więc głowa jest dokładnie w punkcie x postaci także po `flipX`), stopy na dolnej krawędzi (wspólna linia podłoża). Wcześniej klatki były centrowane po całym obrysie (z peleryną i mieczem), więc głowa „skakała” o 3–5 px między klatkami i o ~8 px przy zmianie poz (bieg → skok).
+- **Skala głowy** (`HEAD_SCALE`): w źródłowych grafikach głowa w skoku była ~20% mniejsza, a w ataku ~15% większa niż w biegu – skorygowane (stałe zmierzone ręcznie; zmieniasz w skrypcie i uruchamiasz go ponownie).
+- **Spacer casual w intro** (`casual_walk`): krok (`arek_casual_run_2`, obie stopy na ziemi) na przemian z pozą stojącą, `CFG.WALK_FPS` 3, tempo zgrane z przesuwaniem tła (w fazie „scare”, gdy tło zwalnia, zwalniają też kroki). Z istniejących klatek da się zrobić tylko tyle (wszystkie kroki z tą samą nogą z przodu); docelowo warto dorysować klatki z przeciwną nogą.
+- W arenie bez ruchu Arek stoi w pozie „mijanie” (dawniej błędnie pokazywała się poza ataku).
+- Fibi (2 klatki chodu) nie wymagała zmian – różnice położenia klatek ≤1 px.
+
 ## Sterowanie
 | Akcja                  | Klawisz        | Telefon        |
 |------------------------|----------------|----------------|

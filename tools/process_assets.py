@@ -37,6 +37,13 @@ DOG_FRAMES = ['fibi_walk_1', 'fibi_walk_2', 'fibi_stand']
 FACE_SRC = os.path.join(ROOT, 'assets', 'portraits', 'fibi_portrait_front.png')   # portret Fibi na ekranie powitalnym
 
 FRAME_H_GAME = 64      # wysokość klatki Arka w grze (px) po przeskalowaniu
+
+# Korekta skali głowy między klatkami (źródłowe grafiki były rysowane w trochę różnych skalach:
+# głowa w skoku ~12 px, w ataku ~18 px, w biegu ~15 px). Wartości zmierzone ręcznie na przetworzonych
+# klatkach (szerokość głowy / 15.4 px); 1.0 = bez zmian. Dzięki temu głowa nie "pulsuje" przy zmianie pozy.
+HEAD_SCALE = {'run_1': 1.0, 'run_2': 1.0, 'run_3': 1.0, 'jump': 1.2, 'attack': 0.88}
+HEAD_ROWS = 11         # ile górnych rzędów sylwetki bierzemy do wyznaczenia kotwicy (głowa)
+HEAD_WIN = 14          # szerokość okna "głowy" (px w grze)
 PALETTE_COLORS = 48
 
 
@@ -121,6 +128,47 @@ def quantize(imgs_masks, colors=PALETTE_COLORS):
     return out
 
 
+def head_anchor(rgb, mask):
+    """Kotwica poziomna klatki = środek głowy: najgęstsze okno HEAD_WIN px w górnych HEAD_ROWS rzędach
+    (pomija czerwoną pelerynę, która w skoku wystaje nad głowę). Zwraca (ax, top_y)."""
+    a = np.array(rgb).astype(int)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    red = (r > 85) & (r > g * 1.7) & (r > b * 1.7)
+    m = mask & ~red
+    ys, xs = np.where(m)
+    top = ys.min()
+    prof = m[top:top + HEAD_ROWS].sum(0)
+    best = max(range(0, m.shape[1] - HEAD_WIN + 1), key=lambda x: prof[x:x + HEAD_WIN].sum())
+    return best + HEAD_WIN // 2, top
+
+
+def align_set(cut, names, base_scale, key_of=lambda n: n):
+    """Wspólna ramka dla zestawu klatek jednej postaci:
+      * skala = base_scale * HEAD_SCALE[klatka] (spójny rozmiar głowy),
+      * środek głowy (kotwica) w tej samej kolumnie - ramka jest symetryczna wokół kotwicy,
+        więc sprite z originX 0.5 ma głowę dokładnie w punkcie x postaci (także po flipX),
+      * stopy (najniższy piksel) na dolnej krawędzi ramki = wspólna linia podłoża.
+    Zwraca listę (rgb, mask) w kolejności names."""
+    parts = []
+    for n in names:
+        c = cut[n]
+        sc = base_scale * HEAD_SCALE.get(key_of(n), 1.0)
+        sw, sh = max(1, round(c.width * sc)), max(1, round(c.height * sc))
+        rgb, mask = to_game(c, (sw, sh))
+        ax, _ = head_anchor(rgb, mask)
+        parts.append((n, rgb, mask, ax, sw, sh))
+    half = max(max(ax, sw - ax) for _, _, _, ax, sw, _ in parts)
+    fw, fh = 2 * half + 1, max(sh for *_, sh in parts)
+    items = []
+    for n, rgb, mask, ax, sw, sh in parts:
+        frame = Image.new('RGB', (fw, fh)); fm = np.zeros((fh, fw), bool)
+        x0, y0 = half - ax, fh - sh
+        frame.paste(rgb, (x0, y0)); fm[y0:y0 + sh, x0:x0 + sw] = mask
+        items.append((frame, fm))
+        print('  %-20s head anchor x=%d  size %dx%d' % (n, ax, sw, sh))
+    return items
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     # ---- Arek
@@ -132,22 +180,8 @@ def main():
     # wspólna skala: najwyższa klatka (bez miecza przy idle) -> FRAME_H_GAME
     max_h = max(c.height for n, c in cut.items())
     scale = FRAME_H_GAME / max_h
-    max_w = max(c.width for c in cut.values())
-    fw, fh = int(round(max_w * scale)), FRAME_H_GAME
-    print('scale', scale, 'frame', fw, fh)
-    items = []
-    for n in ARCHIVE_FRAMES:
-        c = cut[n]
-        sw, sh = max(1, round(c.width * scale)), max(1, round(c.height * scale))
-        rgb, mask = to_game(c, (sw, sh))
-        frame_rgb = Image.new('RGB', (fw, fh))
-        frame_mask = np.zeros((fh, fw), bool)
-        # stopy na dole, środek sylwetki (bez miecza) przybliżony środkiem bbox
-        x0 = (fw - sw) // 2
-        y0 = fh - sh
-        frame_rgb.paste(rgb, (x0, y0))
-        frame_mask[y0:y0 + sh, x0:x0 + sw] = mask
-        items.append((frame_rgb, frame_mask))
+    items = align_set(cut, ARCHIVE_FRAMES, scale)
+    print('arek frame', items[0][0].size)
     for n, im in zip(ARCHIVE_FRAMES, quantize(items)):
         im.save(os.path.join(OUT, f'arek_{n}.png'))
     process_title_face()
@@ -184,20 +218,10 @@ def process_casual():
         im = im.convert('RGBA') if im.mode == 'RGBA' and (np.array(im)[..., 3] == 0).any() else remove_checkerboard(im)
         cut[n] = im.crop(bbox(im))
     scale = CASUAL_H_GAME / max(c.height for c in cut.values())
-    run_w = max(round(cut[n].width * scale) for n in CASUAL_FRAMES if 'run' in n)
-    items = []
-    for n in CASUAL_FRAMES:
-        c = cut[n]
-        sw, sh = max(1, round(c.width * scale)), max(1, round(c.height * scale))
-        rgb, mask = to_game(c, (sw, sh))
-        fw = run_w if 'run' in n else sw
-        frame = Image.new('RGB', (fw, CASUAL_H_GAME)); fm = np.zeros((CASUAL_H_GAME, fw), bool)
-        x0, y0 = (fw - sw) // 2, CASUAL_H_GAME - sh
-        frame.paste(rgb, (x0, y0)); fm[y0:y0 + sh, x0:x0 + sw] = mask
-        items.append((frame, fm))
+    items = align_set(cut, CASUAL_FRAMES, scale)
     for n, im in zip(CASUAL_FRAMES, quantize(items, 48)):
         im.save(os.path.join(OUT, n + '.png'))
-    print('casual frames', run_w, 'x', CASUAL_H_GAME)
+    print('casual frame', items[0][0].size)
 
 
 def process_kamil():

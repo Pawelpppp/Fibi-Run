@@ -74,6 +74,13 @@ const CFG = {
     INTRO_DOG_SPEED: 210,      // px/s - jak szybko ucieka pies
     INTRO_SKIP_GUARD: 0.4,     // s - tyle ignorujemy "skip", żeby klik START nie pominął intra
 
+    // --- animacja biegu / chodu ---
+    RUN_FPS: 10,                // klatek/s przy prędkości SPEED_NORMAL (cykl 1-2-3-2 = ~2,5 kroku/s)
+    RUN_TIMESCALE_MIN: 0.7,     // tempo animacji = prędkość Arka / SPEED_NORMAL, w tych granicach
+    RUN_TIMESCALE_MAX: 1.9,
+    WALK_FPS: 3,                // tempo spaceru casual w intro (klatek/s przy INTRO_WALK_SPEED)
+    SLASH_OFFSET_X: 12,         // przesunięcie błysku miecza od środka (głowy) Arka
+
     // --- przejście po poziomie 1 i walka z bossem (ksiądz Kamil) ---
     ARENA_RUSH_DISTANCE: 1100,  // o ile px ekran gwałtownie przesuwa się w prawo (bohater ląduje przy lewej krawędzi)
     ARENA_RUSH_TIME: 2.2,
@@ -563,12 +570,18 @@ class BootScene extends Phaser.Scene {
     create() {
         makeTextures(this);
         this.anims.create({
-            key: 'run', frameRate: 9, repeat: -1,
-            frames: ['arek_run_1', 'arek_run_2', 'arek_run_3'].map(key => ({ key })),
+            // ping-pong 1-2-3-2: pozy "wykrok" (1,3) przeplatane pozą "mijanie" (2) - bez skoku 3->1
+            key: 'run', frameRate: CFG.RUN_FPS, repeat: -1,
+            frames: ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_run_2'].map(key => ({ key })),
         });
         this.anims.create({
-            key: 'casual_run', frameRate: 9, repeat: -1,
-            frames: ['arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3'].map(key => ({ key })),
+            key: 'casual_run', frameRate: CFG.RUN_FPS, repeat: -1,
+            frames: ['arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_run_2'].map(key => ({ key })),
+        });
+        // spacer: krok (casual_run_2: stopy na ziemi) na przemian z pozą stojącą (mijanie nóg) - bez fazy lotu jak w biegu
+        this.anims.create({
+            key: 'casual_walk', frameRate: CFG.WALK_FPS, repeat: -1,
+            frames: ['arek_casual_run_2', 'arek_casual_stand', 'arek_casual_run_2', 'arek_casual_stand'].map(key => ({ key })),
         });
         this.anims.create({ key: 'car_drive', frameRate: 8, repeat: -1, frames: [{ key: 'car_1' }, { key: 'car_2' }] });
         this.anims.create({ key: 'dog_walk', frameRate: 4, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
@@ -648,8 +661,7 @@ class IntroScene extends Phaser.Scene {
 
         const ax = CFG.INTRO_AREK_X, gy = CFG.GROUND_Y;
         this.arek = this.add.sprite(ax, gy, 'arek_casual_run_1').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
-        this.arek.play('casual_run');
-        this.arek.anims.timeScale = 0.4;       // powolny spacer
+        this.arek.play('casual_walk');         // powolny spacer (tempo dopasowane do przesuwania tła w update)
         this.dog = this.add.sprite(ax + CFG.INTRO_DOG_DIST, gy + 1, 'fibi_stand').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
         this.dog.play('dog_walk');
 
@@ -780,6 +792,7 @@ class IntroScene extends Phaser.Scene {
         if (this.phase === 'scare') target = -CFG.INTRO_WALK_SPEED * 0.4;
         this.scroll += (target - this.scroll) * Math.min(1, dt * 5);
         this.camX += this.scroll * dt;
+        if (this.phase === 'walk' || this.phase === 'scare') this.arek.anims.timeScale = Math.max(0.2, Math.abs(this.scroll) / CFG.INTRO_WALK_SPEED);   // kroki zgrane z tłem
         this.bg.update(this.camX);
 
         this.drawLeash(dt);
@@ -1229,19 +1242,20 @@ class PlayScene extends Phaser.Scene {
             this.scrollCur += (L.scroll - this.scrollCur) * Math.min(1, dt * 2.5);
             this.camX += this.scrollCur * dt;
             a.x += v * dt;
-            animSpeed = v / L.normal;
+            animSpeed = v / CFG.SPEED_NORMAL;
         } else if (this.mode === 'rush') {
             this.rushT += dt;
             const u = Math.min(1, this.rushT / CFG.ARENA_RUSH_TIME), e = u * u * (3 - 2 * u);
             this.camX = this.rushFrom + CFG.ARENA_RUSH_DISTANCE * e;
             a.x = this.camX + this.rushSX0 + (CFG.ARENA_HERO_X - this.rushSX0) * e;
-            animSpeed = 2.4;
+            animSpeed = 2.2;
             if (u >= 1) this.startArrive();
         } else if (this.mode === 'boss') {
             const dir = (right ? 1 : 0) - (left ? 1 : 0);
             a.x += dir * CFG.BOSS_HERO_SPEED * dt;
             if (dir) this.facing = dir;
             this.heroMoving = dir !== 0;
+            animSpeed = Math.abs(dir) * CFG.BOSS_HERO_SPEED / CFG.SPEED_NORMAL;
         } else if (this.mode === 'bossend') {
             // po zwycięstwie: tło rusza dopiero gdy auto odjedzie (startLevel2 przełącza tryb)
             this.heroMoving = false;
@@ -1299,12 +1313,14 @@ class PlayScene extends Phaser.Scene {
         if (pose !== this.pose) {
             this.pose = pose;
             if (pose === 'run') this.arek.play('run');
-            else { this.arek.anims.stop(); this.arek.setTexture(pose === 'jump' ? 'arek_jump' : 'arek_attack'); }
+            else { this.arek.anims.stop(); this.arek.setTexture({ jump: 'arek_jump', attack: 'arek_attack', idle: 'arek_run_2' }[pose]); }   // idle (arena): poza "mijania", stopy na ziemi
         }
-        if (pose === 'run') this.arek.anims.timeScale = animSpeed;
+        if (pose === 'run') {
+            this.arek.anims.timeScale = Phaser.Math.Clamp(animSpeed, CFG.RUN_TIMESCALE_MIN, CFG.RUN_TIMESCALE_MAX);   // kadencja ~ prędkość względem podłoża
+        }
         this.slash.setVisible(this.attackT > CFG.ATTACK_TIME * 0.35)
             .setOrigin(this.facing > 0 ? 0 : 1, 0.5).setFlipX(this.facing < 0)
-            .setPosition(sx + 6 * this.facing, sy - 30);
+            .setPosition(sx + CFG.SLASH_OFFSET_X * this.facing, sy - 30);
         this.slash.setAlpha(Math.min(1, this.attackT / (CFG.ATTACK_TIME * 0.6)));
 
         // --- kamera i tło ---
