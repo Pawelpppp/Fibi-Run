@@ -13,6 +13,15 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – reklama/gra 16-bit
 - Zabawny, absurdalny ton (jak w Mustache Protocol)
 - Bohater w złotej zbroi z czerwonymi akcentami i peleryną
 - Mały czarno-brązowy pies, który też mówi (portret do dialogów)
+- Postacie to prawdziwe osoby, które w grze mają być od razu rozpoznawalne (lekka karykatura)
+
+---
+
+## Postacie
+| Postać | Rola | Opis |
+|--------|------|------|
+| **Arek** | bohater | okulary, broda, złota zbroja z mieczem |
+| **Ksiądz Kamil** | główny antagonista | rude krótkie włosy (buzz cut), niebieskie oczy, złośliwy szeroki uśmiech, czarna sutanna z koloratką, czarny plecak |
 
 ---
 
@@ -93,11 +102,17 @@ assets/
 │   ├── run_3.png
 │   ├── jump.png
 │   ├── attack.png
-│   └── front_full.png
+│   ├── front_full.png
+│   ├── ksiadz_kamil_stand.png        # 28×80, stoi (+ _x4 podgląd)
+│   ├── ksiadz_kamil_walk_1.png       # 40×80, chód klatka 1 (+ _x4 podgląd)
+│   └── ksiadz_kamil_walk_2.png       # 41×80, chód klatka 2 (+ _x4 podgląd)
 └── portraits/
     ├── dialogue_portrait.png
-    └── face_portrait.png
+    ├── face_portrait.png
+    └── ksiadz_kamil_portrait_front.png  # 96×96, portret do dialogów (+ _x4 podgląd)
 ```
+
+Pliki `*_x4.png` to te same grafiki powiększone 4× (nearest neighbor) do podglądu.
 
 Wszystkie grafiki mają transparentne tło i są w stylu 16-bit.
 
