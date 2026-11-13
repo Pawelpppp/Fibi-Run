@@ -36,6 +36,8 @@ ARMOR_RUN6 = [f'arek_run6_{i}' for i in range(1, 7)]
 ARMOR_JUMP = [f'arek_jump_{i}' for i in range(1, 6)]
 KAMIL_H_GAME = 64      # wysokość księdza Kamila w grze (px) - jak Arek
 KAMIL_FRAMES = ['ksiadz_kamil_walk_1', 'ksiadz_kamil_walk_2', 'ksiadz_kamil_stand']
+KAMIL_LAUGH = [f'ksiadz_kamil_laugh_walk_{i}' for i in range(1, 5)]   # śmiejący się chód (wyskakuje po utracie życia)
+KAMIL_HAHA_BUBBLE = 'ksiadz_kamil_bubble_haha'                        # dymek "HA HA!" (96x50 -> 48x25)
 RAFAL_H_GAME = 64      # wysokość Rafała dresa w grze (px) - jak Arek / Kamil (stand = 160 px w oryginale)
 RAFAL_FRAMES = (['rafal_dres_stand'] + [f'rafal_dres_walk_{i}' for i in range(1, 5)]
                 + [f'rafal_dres_punch_{i}' for i in range(1, 4)] + [f'rafal_dres_throw_{i}' for i in range(1, 3)])
@@ -249,6 +251,7 @@ def main():
     process_title_face()
     process_casual()
     process_kamil()
+    process_kamil_laugh()
     process_rafal()
     copy_car()
     process_dog()
@@ -309,6 +312,33 @@ def process_kamil():
     for n, im in zip(KAMIL_FRAMES, quantize(items, 40)):
         im.save(os.path.join(OUT, n.replace('ksiadz_kamil', 'kamil') + '.png'))
     print('kamil frames', walk_w, 'x', KAMIL_H_GAME)
+
+
+def process_kamil_laugh():
+    """Śmiejący się Kamil (4 klatki chodu) -> assets/game/kamil_laugh_walk_1..4.png (ta sama skala co kamil_*),
+    dymek HA HA -> assets/game/kamil_bubble_haha.png (połowa rozmiaru oryginału)."""
+    ref = Image.open(os.path.join(ARCHIVE_DIR, 'ksiadz_kamil_stand.png'))
+    ref = ref.convert('RGBA') if ref.mode == 'RGBA' and (np.array(ref)[..., 3] == 0).any() else remove_checkerboard(ref)
+    scale = KAMIL_H_GAME / float(ref.crop(bbox(ref)).height)          # jak process_kamil (stand = najwyższa klatka)
+    cut = {}
+    for n in KAMIL_LAUGH:
+        im = Image.open(os.path.join(ARCHIVE_DIR, n + '.png')).convert('RGBA')
+        cut[n] = im.crop(bbox(im))
+    fw = max(round(c.width * scale) for c in cut.values())
+    items = []
+    for n in KAMIL_LAUGH:
+        c = cut[n]
+        sw, sh = max(1, round(c.width * scale)), min(KAMIL_H_GAME, max(1, round(c.height * scale)))
+        rgb, mask = to_game(c, (sw, sh))
+        frame = Image.new('RGB', (fw, KAMIL_H_GAME)); fm = np.zeros((KAMIL_H_GAME, fw), bool)
+        x0, y0 = (fw - sw) // 2, KAMIL_H_GAME - sh
+        frame.paste(rgb, (x0, y0)); fm[y0:y0 + sh, x0:x0 + sw] = mask
+        items.append((frame, fm))
+    for n, im in zip(KAMIL_LAUGH, quantize(items, 40)):
+        im.save(os.path.join(OUT, n.replace('ksiadz_kamil', 'kamil') + '.png'))
+    b = Image.open(os.path.join(ARCHIVE_DIR, KAMIL_HAHA_BUBBLE + '.png')).convert('RGBA')
+    b.resize((b.width // 2, b.height // 2), Image.NEAREST).save(os.path.join(OUT, 'kamil_bubble_haha.png'))
+    print('kamil laugh frames', fw, 'x', KAMIL_H_GAME)
 
 
 def process_rafal():

@@ -21,6 +21,15 @@ const CFG = {
     SPEED_NORMAL: 80,       // prędkość Arka bez klawiszy (= ekran, zostaje w miejscu)
     SPEED_SLOW: 60,         // ← zwolnij (nadal biegnie w prawo, nigdy nie stoi)
     SPEED_FAST: 135,        // → przyspiesz
+    // --- przedmiot "błyskawica": na chwilę przyspiesza przewijanie ekranu (misje biegowe 1, 3, 5) ---
+    SPEED_ITEM: {
+        MULT: 1.6,              // ile razy szybciej przewija się ekran (i biegnie Arek - zostaje w miejscu względem ekranu)
+        TIME: 6,                // s - czas działania (kolejna błyskawica odnawia licznik)
+        CHANCE: 0.10,           // szansa na błyskawicę w przerwie między przeszkodami (gdy nie ma serduszka)
+        MIN_SCORE: 30,          // od ilu punktów w misji zaczyna się pojawiać
+        HEIGHT: 72,             // wysokość nad ziemią (trzeba podskoczyć)
+        RAMP: 5,                // jak szybko ekran przyspiesza / zwalnia (1/s)
+    },
     EDGE_MARGIN: 20,        // ile px od krawędzi ekranu Arek może dojść (połowa jego szerokości)
 
     // --- skok ---
@@ -161,6 +170,16 @@ const CFG = {
         KASTET_FPS: 14,           // tempo obrotu pocisku
         RAGE_DOUBLE_CHANCE: 0.45, // w szale: szansa na dwa kastety pod rząd
         DIALOG_LINE_TIME: 2.0,    // s - jak długo widać każdą kwestię przed walką
+    },
+
+    // --- Kamil śmieje się po utracie życia (czysto kosmetyczny, bez kolizji) ---
+    HAHA: {
+        IN_TIME: 0.2,           // s - wsunięcie się z krawędzi ekranu
+        HOLD_TIME: 1.2,         // s - tyle stoi i się śmieje
+        OUT_TIME: 0.25,         // s - wysuwa się z powrotem
+        SFX_DELAY: 0.85,        // s po utracie życia - śmiech po smutnej trąbce ("lifelost"), żeby się nie zagłuszały
+        FPS: 8,                 // tempo animacji śmiejącego się chodu
+        EDGE_X: 46,             // px od krawędzi ekranu, gdzie staje
     },
 
     // --- zakończenie ---
@@ -503,6 +522,26 @@ function makeTextures(scene) {
         disc(c, 15, 15, 9, 'rgba(255,240,160,0.22)');
     });
 
+    /* --- błyskawica (przedmiot przyspieszenia) 9x12 (x2) + poświata --- */
+    artTex(scene, 'bolt', [
+        '....oooo.',
+        '...oyyyo.',
+        '..oywyo..',
+        '.oywyo...',
+        'oywyyyyo.',
+        'oyyyyywo.',
+        '.oooywyo.',
+        '....oywo.',
+        '...oywo..',
+        '...oyo...',
+        '..oyo....',
+        '..oo.....',
+    ], { o: '#0a2a6a', y: '#ffd820', w: '#fffbe0' }, 2);
+    canvasTex(scene, 'bolt_glow', 40, 40, (c) => {
+        disc(c, 20, 20, 19, 'rgba(80,220,255,0.16)');
+        disc(c, 20, 20, 13, 'rgba(120,240,255,0.22)');
+    });
+
     /* --- serduszko 9x8 (x2) --- */
     artTex(scene, 'heart', [
         '.ooo.ooo.',
@@ -760,6 +799,7 @@ class BootScene extends Phaser.Scene {
             'arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_run_4', 'arek_casual_run_5', 'arek_casual_run_6',
             'arek_casual_jump_1', 'arek_casual_jump_2', 'arek_casual_jump_3', 'arek_casual_jump_4', 'arek_casual_jump_5',
             'arek_casual_stand', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand', 'kamil_stand', 'kamil_walk_1', 'kamil_walk_2',
+            'kamil_laugh_walk_1', 'kamil_laugh_walk_2', 'kamil_laugh_walk_3', 'kamil_laugh_walk_4', 'kamil_bubble_haha',
             'rafal_stand', 'rafal_walk_1', 'rafal_walk_2', 'rafal_walk_3', 'rafal_walk_4',
             'rafal_punch_1', 'rafal_punch_2', 'rafal_punch_3', 'rafal_throw_1', 'rafal_throw_2',
             'rafal_kastet', 'rafal_kastet_spin_1', 'rafal_kastet_spin_2', 'rafal_kastet_spin_1m', 'rafal_portrait',
@@ -789,6 +829,7 @@ class BootScene extends Phaser.Scene {
         this.anims.create({ key: 'car_drive', frameRate: 8, repeat: -1, frames: [{ key: 'car_1' }, { key: 'car_2' }] });
         this.anims.create({ key: 'dog_walk', frameRate: 4, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
         this.anims.create({ key: 'dog_run', frameRate: 12, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
+        this.anims.create({ key: 'kamil_laugh', frameRate: CFG.HAHA.FPS, repeat: -1, frames: [1, 2, 3, 4].map(i => ({ key: 'kamil_laugh_walk_' + i })) });
         this.anims.create({ key: 'kamil_walk', frameRate: 6, repeat: -1, frames: [{ key: 'kamil_walk_1' }, { key: 'kamil_walk_2' }] });
         this.anims.create({ key: 'rafal_walk', frameRate: 7, repeat: -1, frames: [1, 2, 3, 4].map(i => ({ key: 'rafal_walk_' + i })) });
         // obrót kastetu: przód -> 45 st. -> bok -> 45 st. (lustro)
@@ -1208,7 +1249,8 @@ class PlayScene extends Phaser.Scene {
         this.attackT = 0;
         this.attackCd = 0;
         this.facing = 1;
-        this.barrels = []; this.monsters = []; this.hearts = []; this.crosses = [];
+        this.barrels = []; this.monsters = []; this.hearts = []; this.crosses = []; this.bolts = [];
+        this.boostT = 0; this.boostMul = 1; this.hahaK = null;
         this.boss = null; this.fibi = null; this.car = null; this.carObj = null; this.carBar = null; this.carInfo = null;
         if (this.carSnd) this.carSnd.stop(0.05);
         this.carSnd = null;
@@ -1368,6 +1410,8 @@ class PlayScene extends Phaser.Scene {
             if (Math.random() < L.heartChance || this.sinceHeart >= CFG.HEART_GUARANTEE) {
                 this.spawnHeart(x + gap / 2);
                 this.sinceHeart = 0;
+            } else if (this.score >= CFG.SPEED_ITEM.MIN_SCORE && this.bolts.length === 0 && Math.random() < CFG.SPEED_ITEM.CHANCE) {
+                this.spawnBolt(x + gap / 2);
             }
             this.nextObstacleX += Math.max(gap, 200);
         }
@@ -1413,6 +1457,51 @@ class PlayScene extends Phaser.Scene {
         this.hearts.push({ s, wx: x, y, hw: 9, taken: false });
     }
 
+    /** Przedmiot przyspieszenia (błyskawica): zebrany => ekran przewija się CFG.SPEED_ITEM.MULT razy szybciej przez CFG.SPEED_ITEM.TIME s. */
+    spawnBolt(x) {
+        const y = CFG.GROUND_Y - CFG.SPEED_ITEM.HEIGHT;
+        const glow = this.add.image(x, y, 'bolt_glow').setDepth(4.9).setBlendMode(Phaser.BlendModes.ADD);
+        const s = this.add.image(x, y, 'bolt').setDepth(5);
+        this.tweens.add({ targets: [s, glow], y: y - 4, duration: 380, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        this.tweens.add({ targets: glow, alpha: 0.4, duration: 260, yoyo: true, repeat: -1 });
+        this.bolts.push({ s, glow, wx: x, y, hw: 10 });
+    }
+    updateBolts(body) {
+        for (let i = this.bolts.length - 1; i >= 0; i--) {
+            const o = this.bolts[i];
+            const gone = () => { this.tweens.killTweensOf(o.s); this.tweens.killTweensOf(o.glow); o.s.destroy(); o.glow.destroy(); this.bolts.splice(i, 1); };
+            if (PlayScene.hit(body, { l: o.wx - o.hw, r: o.wx + o.hw, t: o.y - 12, b: o.y + 12 })) {
+                this.boostT = CFG.SPEED_ITEM.TIME;
+                this.popup(o.wx, o.y - 14, 'SPEED UP!', '#60e8ff');
+                this.burst(o.wx, o.y, 0x60e8ff, 12);
+                audioSfx('boost');
+                gone();
+            } else if (o.wx < this.camX - 40) gone();
+        }
+    }
+    /** Wskaźnik przyspieszenia: ikona + malejący pasek pod sercami, smugi prędkości. */
+    updateBoostHud(dt) {
+        const on = this.boostT > 0 && this.mode === 'run' && this.state === 'play';
+        if (!this.boostHud) {
+            const icon = this.add.image(8, 28, 'bolt').setOrigin(0).setScrollFactor(0).setDepth(10);
+            const back = this.add.rectangle(30, 32, 62, 8, 0x60e8ff).setOrigin(0).setScrollFactor(0).setDepth(10);
+            const mid = this.add.rectangle(31, 33, 60, 6, 0x0a2a6a).setOrigin(0).setScrollFactor(0).setDepth(10);
+            const bar = this.add.rectangle(31, 33, 60, 6, 0xffd820).setOrigin(0).setScrollFactor(0).setDepth(10);
+            const streaks = [];
+            for (let i = 0; i < 8; i++) streaks.push({ r: this.add.rectangle(0, 0, 40, 1, 0xffffff, 0.35).setOrigin(0).setScrollFactor(0).setDepth(4.6), x: Math.random() * W, y: 50 + Math.random() * 200, w: 24 + Math.random() * 40 });
+            this.boostHud = { parts: [icon, back, mid, bar], bar, streaks };
+        }
+        const h = this.boostHud;
+        h.parts.forEach(o => o.setVisible(on));
+        if (on) h.bar.width = Math.max(1, Math.round(60 * this.boostT / CFG.SPEED_ITEM.TIME));
+        h.streaks.forEach(st => {
+            st.r.setVisible(this.boostMul > 1.05 && this.mode === 'run');
+            if (!st.r.visible) return;
+            st.x -= 700 * dt; if (st.x < -st.w) { st.x = W + Math.random() * 100; st.y = 50 + Math.random() * 200; st.w = 24 + Math.random() * 40; }
+            st.r.setPosition(Math.round(st.x), Math.round(st.y)).setSize(st.w, 1).setAlpha(0.15 + 0.3 * Math.min(1, (this.boostMul - 1) / (CFG.SPEED_ITEM.MULT - 1)));
+        });
+    }
+
     /* ---------- pomocnicze ---------- */
     popup(wx, y, str, color) {
         const t = pxText(this, wx, y, str, { scale: 2, color: color || '#ffffff', shadow: '#000000' }).setDepth(9);
@@ -1452,11 +1541,12 @@ class PlayScene extends Phaser.Scene {
     static hit(A, B) { return A.l < B.r && A.r > B.l && A.t < B.b && A.b > B.t; }
     clearWorld(fade) {
         this.spawning = false;
-        [...this.barrels, ...this.monsters, ...this.hearts].forEach(o => {
-            this.tweens.killTweensOf(o.s);
+        [...this.barrels, ...this.monsters, ...this.hearts, ...this.bolts].forEach(o => {
+            this.tweens.killTweensOf(o.s); if (o.glow) { this.tweens.killTweensOf(o.glow); o.glow.destroy(); }
             this.tweens.add({ targets: o.s, alpha: 0, duration: fade || 250, onComplete: () => o.s.destroy() });
         });
-        this.barrels = []; this.monsters = []; this.hearts = [];
+        this.barrels = []; this.monsters = []; this.hearts = []; this.bolts = [];
+        this.boostT = 0;
     }
 
     /* =================================================================
@@ -1501,10 +1591,13 @@ class PlayScene extends Phaser.Scene {
             let v = L.normal;
             if (right && !left) v = L.fast; else if (left && !right) v = L.slow;
             this.scrollCur += (L.scroll - this.scrollCur) * Math.min(1, dt * 2.5);
-            this.camX += this.scrollCur * dt;
-            a.x += v * dt;
-            animSpeed = v / CFG.SPEED_NORMAL;
+            this.boostT = Math.max(0, this.boostT - dt);
+            this.boostMul += ((this.boostT > 0 ? CFG.SPEED_ITEM.MULT : 1) - this.boostMul) * Math.min(1, dt * CFG.SPEED_ITEM.RAMP);
+            this.camX += this.scrollCur * this.boostMul * dt;
+            a.x += v * this.boostMul * dt;            // z błyskawicą Arek biegnie tak samo szybciej względem podłoża (zostaje w miejscu na ekranie)
+            animSpeed = v * this.boostMul / CFG.SPEED_NORMAL;
         } else if (this.mode === 'rush') {
+            this.boostT = 0; this.boostMul = 1;
             this.rushT += dt;
             const u = Math.min(1, this.rushT / CFG.ARENA_RUSH_TIME), e = u * u * (3 - 2 * u);
             this.camX = this.rushFrom + CFG.ARENA_RUSH_DISTANCE * e;
@@ -1527,6 +1620,7 @@ class PlayScene extends Phaser.Scene {
         } else {
             this.heroMoving = false;
         }
+        // Arek nigdy nie opuszcza ekranu (poza scenką końcową): przewijanie / odrzut / przyspieszenie go przesuwa, nie zabija
         if (this.mode !== 'ending') a.x = Phaser.Math.Clamp(a.x, this.camX + CFG.EDGE_MARGIN, this.camX + W - (this.fibi && this.mode === 'boss' ? CFG.FIBI_ARENA_GAP : CFG.EDGE_MARGIN));
         if (this.mode === 'run' || this.mode === 'rush') this.facing = 1;
 
@@ -1610,6 +1704,8 @@ class PlayScene extends Phaser.Scene {
             .setPosition(sx + CFG.SLASH_OFFSET_X * this.facing, sy - 30);
         this.slash.setAlpha(Math.min(1, this.attackT / (CFG.ATTACK_TIME * 0.6)));
 
+        this.updateBoostHud(dt);
+
         // --- kamera i tło ---
         this.cameras.main.scrollX = Math.floor(this.camX);
         this.bg.update(this.camX);
@@ -1651,6 +1747,7 @@ class PlayScene extends Phaser.Scene {
             if (b.wx < this.camX - 60) { b.s.destroy(); this.barrels.splice(i, 1); }
         }
         this.updateHearts(body);
+        this.updateBolts(body);
         return this.state === 'play';
     }
 
@@ -1674,12 +1771,45 @@ class PlayScene extends Phaser.Scene {
         if (this.invuln > 0 || this.state !== 'play') return;
         this.lives -= 1;
         this.refreshHud();
-        audioSfx('hurt');
+        audioSfx('hurt'); audioSfx('lifelost');
+        this.kamilLaughs();
         this.cameras.main.shake(160, 0.012);
         this.cameras.main.flash(120, 255, 60, 60);
         if (this.lives <= 0) { this.gameOver(); return; }
         this.invuln = CFG.INVULN_TIME;
         this.popup(this.a.x, this.a.y - 62, '-1 LIFE', '#ff5050');
+    }
+
+    /** Po utracie życia: Kamil wsuwa się z lewej albo prawej krawędzi ekranu z dymkiem "HA HA!" i znika (tylko dekoracja:
+        bez kolizji, nie blokuje sterowania). Gdy Kamil jest już na arenie (boss), śmieje się w miejscu - tylko dymek nad nim. */
+    kamilLaughs() {
+        const H = CFG.HAHA, G = CFG.GROUND_Y;
+        this.time.delayedCall(H.SFX_DELAY * 1000, () => audioSfx('haha'));
+        const b = this.boss;
+        if (b && b.kind === 'kamil' && b.s && b.s.active && b.hp > 0) {                  // boss Kamil na ekranie: dymek w miejscu
+            this.hahaBubble(b.s.x, G - 66, 1, false);
+            return;
+        }
+        if (this.hahaK && this.hahaK.active) return;                                      // już się śmieje
+        const fromLeft = Math.random() < 0.5, x1 = fromLeft ? H.EDGE_X : W - H.EDGE_X, x0 = fromLeft ? -40 : W + 40;
+        const k = this.hahaK = this.add.sprite(x0, G, 'kamil_laugh_walk_1').setOrigin(0.5, 1).setScrollFactor(0).setDepth(15).setFlipX(!fromLeft);
+        k.play('kamil_laugh');
+        this.tweens.add({ targets: k, x: x1, duration: H.IN_TIME * 1000, ease: 'Quad.out' });
+        this.time.delayedCall(H.IN_TIME * 1000, () => { if (k.active) this.hahaBubble(x1, G - 66, 0, true, k); });
+        this.time.delayedCall((H.IN_TIME + H.HOLD_TIME) * 1000, () => {
+            if (!k.active) return;
+            this.tweens.add({ targets: k, x: x0, duration: H.OUT_TIME * 1000, ease: 'Quad.in', onComplete: () => k.destroy() });
+        });
+    }
+    /** Dymek "HA HA!" nad głową (ekranowy, bez przewijania); tekst nigdy nie jest odbity. */
+    hahaBubble(x, y, delay, screen, owner) {
+        const H = CFG.HAHA;
+        const sf = this.add.image(x, y, 'kamil_bubble_haha').setOrigin(0.5, 1).setDepth(15.5).setScale(0.1).setAlpha(0);
+        if (screen) sf.setScrollFactor(0);
+        if (owner && owner.flipX) sf.x -= 22;                 // z prawej: dymek (ogon po lewej, tekst nie odbity) nieco w lewo od głowy
+        this.tweens.add({ targets: sf, scale: 1, alpha: 1, duration: 160, ease: 'Back.out' });
+        this.tweens.add({ targets: sf, y: y - 3, duration: 140, yoyo: true, repeat: 4, delay: 200 });
+        this.tweens.add({ targets: sf, alpha: 0, delay: Math.max(200, H.HOLD_TIME * 1000 - 100), duration: 200, onComplete: () => sf.destroy() });
     }
 
     /* =================================================================

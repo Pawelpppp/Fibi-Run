@@ -17,6 +17,7 @@
      sfx(nazwa, opcje)   - jump | sword | hurt | kill | heart | bossHit | cross | punch | throw | clang | carHit | explosion | rush | stomp | click
                            transformacja: charge(czas s) | thunder | sparkle(czas s) | reveal   (lightning = thunder)
                            auto: brake | slam
+                           utrata życia: lifelost (smutna puzonowa gama wah-wah-wah-waaah, ~1 s) | haha (śmiech Kamila, 3x staccato)
      carEngine()         - uchwyt silnika auta {set({speed,pan,vol,pitch}), stop(fade)} (speed 0..1.3)
      duck(poziom, czas)  - chwilowe przyciszenie muzyki (np. na grzmot)
      muted / setMuted(v) / toggleMute() / onChange(fn)  - wyciszenie (zapamiętane w localStorage)
@@ -672,6 +673,31 @@
             case 'heart': [660, 880, 1320].forEach((f, i) => { const c = eng.ctx, os = c.createOscillator(), g = c.createGain(); os.setPeriodicWave(eng.wave(0.5)); os.frequency.value = f;
                 g.gain.setValueAtTime(0.0001, t + i * 0.06); g.gain.linearRampToValueAtTime(0.12, t + i * 0.06 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.06 + 0.1);
                 os.connect(g); g.connect(bus); os.start(t + i * 0.06); os.stop(t + i * 0.06 + 0.12); }); break;
+            case 'boost': sweep('square', 330, 1320, 0.22, 0.12, 0.25); sweep(null, 660, 2640, 0.2, 0.08, 0.125); noiseHit(eng, bus, t, 0.14, 0.12, 'highpass', 4000); break;
+            case 'lifelost': {                                  // "smutna trąbka": wah-wah-wah-waaah, pulsowa fala + vibrato + filtr "wah"
+                const notes = [[233, 0.00, 0.17, 220], [220, 0.19, 0.17, 207], [208, 0.38, 0.17, 196], [196, 0.57, 0.62, 150]];
+                notes.forEach(([f, st, d, fEnd], i) => {
+                    const c = eng.ctx, os = c.createOscillator(), g = c.createGain(), lp = c.createBiquadFilter(), t0 = t + st, last = i === notes.length - 1;
+                    os.setPeriodicWave(eng.wave(0.3));
+                    os.frequency.setValueAtTime(f, t0);
+                    if (last) os.frequency.setValueAtTime(f, t0 + 0.12); os.frequency.exponentialRampToValueAtTime(fEnd, t0 + d);   // ostatnia nuta zjeżdża w dół
+                    const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = last ? 6.5 : 0.1; lg.gain.value = last ? f * 0.035 : 0;
+                    lfo.connect(lg); lg.connect(os.frequency); lfo.start(t0); lfo.stop(t0 + d + 0.05);
+                    lp.type = 'lowpass'; lp.Q.value = 5;                                        // "wah": filtr otwiera się i przymyka
+                    lp.frequency.setValueAtTime(350, t0); lp.frequency.exponentialRampToValueAtTime(last ? 1500 : 1900, t0 + d * 0.45); lp.frequency.exponentialRampToValueAtTime(last ? 300 : 600, t0 + d);
+                    g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.2, t0 + 0.02); g.gain.setValueAtTime(0.2, t0 + d * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.04);
+                    os.connect(lp); lp.connect(g); g.connect(bus); os.start(t0); os.stop(t0 + d + 0.06);
+                });
+                break;
+            }
+            case 'haha': [0, 0.15, 0.3].forEach((st, i) => {                                // "ha ha ha": krótkie pulsy z szumem, lekko opadająca wysokość
+                const c = eng.ctx, os = c.createOscillator(), g = c.createGain(), bp = c.createBiquadFilter(), t0 = t + st;
+                os.setPeriodicWave(eng.wave(0.5)); os.frequency.setValueAtTime(300 - i * 25, t0); os.frequency.exponentialRampToValueAtTime(230 - i * 25, t0 + 0.1);
+                bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 1.4;
+                g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.16, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.11);
+                os.connect(bp); bp.connect(g); g.connect(bus); os.start(t0); os.stop(t0 + 0.13);
+                noiseHit(eng, bus, t0, 0.08, 0.07, 'bandpass', 2200, 900, 1);
+            }); break;
             case 'bossHit': kick(eng, bus, t, 0.9); noiseHit(eng, bus, t, 0.3, 0.3, 'lowpass', 2500, 150); sweep('sawtooth', 220, 60, 0.3, 0.12); break;
             case 'cross': sweep(null, 1100, 420, 0.22, 0.1, 0.125); sweep('triangle', 550, 210, 0.22, 0.1); break;
             case 'carHit': noiseHit(eng, bus, t, 0.12, 0.3, 'bandpass', 2400, 700, 2); sweep('triangle', 520, 380, 0.15, 0.12); break;
@@ -817,11 +843,11 @@
         },
         toggleMute() { api.setMuted(!muted); return muted; },
         onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-        /** Renderuje offline: Promise<[L, R]> (Float32Array) o długości `seconds`. Utwór albo sfx_transform / sfx_car_arrive / sfx_car_passby. */
+        /** Renderuje offline: Promise<[L, R]> (Float32Array) o długości `seconds`. Utwór albo sfx_transform / sfx_car_arrive / sfx_car_passby / sfx_lifelost. */
         render(name, seconds, sampleRate) {
             const sr = sampleRate || 44100;
             const isSfx = /^sfx_/.test(name);
-            const len = isSfx ? ({ sfx_transform: 6.2, sfx_car_arrive: 4.3, sfx_car_passby: 5.3 }[name] || 5) : seconds;
+            const len = isSfx ? ({ sfx_transform: 6.2, sfx_car_arrive: 4.3, sfx_car_passby: 5.3, sfx_lifelost: 2.0 }[name] || 5) : seconds;
             const oc = new OfflineAudioContext(2, Math.round(len * sr), sr);
             const e = makeEngine(oc);
             const M = makeMaster(oc, LEVEL_MASTER);
@@ -839,6 +865,8 @@
                     playSfx(e, bus, 'brake', 0.1 + T - 0.55, { dur: 0.8 });
                     v.stop(0.1 + T + 0.5, 0.4);
                     playSfx(e, bus, 'slam', 2.75, {});
+                } else if (name === 'sfx_lifelost') {                    // jak w grze: puzon wah-wah (0,05 s) -> śmiech Kamila (0,85 s po utracie życia)
+                    playSfx(e, bus, 'lifelost', 0.05, {}); playSfx(e, bus, 'haha', 0.95, {});
                 } else if (name === 'sfx_car_passby') {                  // przejazd w intro: 170 px/s przez cały ekran
                     const v = carVoice(e, bus, 0.1);
                     for (let t = 0; t <= 4.5; t += 0.04) {

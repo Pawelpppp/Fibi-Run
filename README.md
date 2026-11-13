@@ -21,7 +21,7 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 
 1. **Intro:** Arek (casual: czerwony t-shirt, spodenki, trampki) spaceruje z Fibi na smyczy. Obok przejeżdża samochód z księdzem Kamilem, pies się płoszy, zrywa smycz i ucieka w prawo.
 2. Arek wyciąga zza pleców miecz i unosi go nad głowę, z nieba uderza **piorun**, następuje **transformacja** w złotą zbroję i Arek biegnie za psem – zaczyna się **misja 1** (bieg).
-3. Po zdobyciu 1000 pkt ekran gwałtownie przesuwa się do areny, gdzie wchodzi **Rafał dres** (**misja 2** – boss: pięści i rzut kastetem; przed walką krótka wymiana zdań z portretem).
+3. Po zdobyciu 1000 pkt ekran gwałtownie przesuwa się do areny, gdzie czeka Fibi (po prawej), a wchodzi **Rafał** (**misja 2** – boss: pięści i rzut kastetem; przed walką krótka wymiana zdań z portretem). Po jego pokonaniu nadjeżdża ksiądz Kamil, zabiera Rafała do auta, **zabiera też Fibi** i odjeżdża.
 4. **Misja 3** (bieg, 3000 pkt, nowe potworki) kończy się areną, gdzie czeka Fibi. Nadjeżdża ksiądz Kamil – **misja 4** (boss). Po pokonaniu Kamila ten w szale wsiada do auta, **zabiera Fibi i odjeżdża**; Arek rusza w pościg.
 5. **Misja 5** (bieg – na razie zastępcza, 1500 pkt, jak misja 3). Na jej końcu Kamil wraca swoim autem – **misja 6, finałowa walka** – **finałowa walka** (auto można zniszczyć, po jego zniszczeniu Kamil wpada w szał). Po jego pokonaniu Arek unosi miecz, trafia go piorun, zdejmuje zbroję, pojawia się napis WYGRAŁEŚ!, Arek odchodzi w lewo za ekran – ekran KONIEC GRY.
 
@@ -30,7 +30,7 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 |--------|------|------|
 | **Arek** | bohater | okulary, broda; w grze złota zbroja z peleryną i mieczem, w intro wersja casual |
 | **Ksiądz Kamil** | antagonista / boss | rude krótkie włosy, czarna sutanna, jeździ czerwonym hatchbackiem, rzuca krzyżykami – boss w **misjach 4 i 6** |
-| **Rafał dres** | dresiarz / boss misji 2 | blady, szczupły, jasnobrązowy jeżyk, charakterystyczny dzióbek, **blizna na policzku** i **duży, gruby złoty łańcuch**; błyszczący czarny dres z białymi paskami, białe buty. Umiejętności specjalne: **walka na pięści** i **rzut kastetem** (w grze od misji 2) |
+| **Rafał** | dresiarz / boss misji 2 | blady, szczupły, jasnobrązowy jeżyk, charakterystyczny dzióbek, **blizna na policzku** i **duży, gruby złoty łańcuch**; błyszczący czarny dres z białymi paskami, białe buty. Umiejętności specjalne: **walka na pięści** i **rzut kastetem** (w grze od misji 2) |
 | **Fibi** | pies | mały czarno-brązowy kundelek (portret na ekranie tytułowym, w intro i w arenie) |
 
 ## Przebieg gry
@@ -40,30 +40,32 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 | Ekran tytułowy | **FIBI [portret] RUN**, przyciski START NEW GAME i **WYNIKI** (Spacja / Enter startuje) | po starcie leci intro (Spacja / tap pomija); WYNIKI otwiera tablicę |
 | Intro | ok. 11 s bez dialogów | spacer, auto Kamila, ucieczka psa, miecz, piorun, transformacja |
 | Misja 1 (bieg) | **1000 pkt** | beczki (też podwójne), zielony potworek, serduszka |
-| Misja 2 – boss: **Rafał dres** | 4 trafienia w Rafała | pięści (prosty + sierpowy) i rzut kastetem, miecz lub skok na głowę |
+| Misja 2 – boss: **Rafał** | 4 trafienia w Rafała | pięści (prosty + sierpowy) i rzut kastetem, miecz lub skok na głowę |
 | Misja 3 (bieg) | **3000 pkt** (licznik od 0) | szybszy ekran, więcej potworków: ghoul, imp, nietoperz |
 | Misja 4 – boss: ksiądz Kamil | 3 trafienia w Kamila | miecz lub skok na głowę, czary-krzyżyki, na końcu zabiera Fibi |
 | Misja 5 (bieg, **zastępcza**) | **1500 pkt** (licznik od 0) | na razie te same ustawienia co misja 3 (`CFG.LEVEL3`) |
 | Misja 6 – finałowy boss: ksiądz Kamil | pokonać Kamila (6 żyć) | więcej czarów, auto do zniszczenia (5 cięć), potem szał; wygrana = zakończenie i KONIEC GRY |
 
 ### Misja 1 (bieg)
-- Ekran sam przesuwa się w prawo; Arek zawsze biegnie w prawo – gracz może tylko **przyspieszyć** (→) albo **zwolnić** (←), ale nie zatrzymać się ani cofnąć. Arek nie wychodzi poza ekran.
+- Ekran sam przesuwa się w prawo; Arek zawsze biegnie w prawo – gracz może tylko **przyspieszyć** (→) albo **zwolnić** (←), ale nie zatrzymać się ani cofnąć. Arek **nigdy nie opuszcza ekranu** (jego pozycja jest przycinana do krawędzi kamery, też przy odrzucie, przyspieszeniu i w arenach bossów) – przewijanie ekranu go najwyżej popycha, nie zabija.
 - **Beczki** trzeba przeskoczyć (+30 pkt za beczkę). Od 60 pkt czasem są **dwie**: obok siebie albo jedna na drugiej (+60).
 - **Potworek** (zielony diablik, placeholder) – zabijasz mieczem (+50).
 - **Życia:** start z 1 życiem, dotknięcie beczki/potworka = −1, **serduszko** = +1 (maks. 5), po trafieniu krótka nietykalność. 0 żyć = game over.
+- **Błyskawica** (żółta, unosi się nisko nad drogą – trzeba podskoczyć; misje 1, 3 i 5): na **6 s** ekran przewija się **1,6× szybciej** (Arek biegnie tak samo szybciej względem podłoża, punkty liczą się normalnie). Pod sercami widać ikonę i malejący pasek czasu, a na ekranie smugi prędkości; kolejna błyskawica odnawia licznik. Ustawienia: `CFG.SPEED_ITEM`.
+- **Utrata życia:** smutny dźwięk „wah-wah-wah-waaah”, a z lewej albo prawej krawędzi ekranu na ok. 1,2 s wsuwa się **ksiądz Kamil** i śmieje się z dymkiem „HA HA!” (tylko dekoracja: bez kolizji, nie blokuje sterowania; gdy Kamil jest już na arenie, śmieje się w miejscu). Ustawienia: `CFG.HAHA`.
 - Pasek postępu i licznik punktów w prawym górnym rogu.
 
-### Misja 2 – boss: Rafał dres
-1. Po 1000 pkt: ten sam przelot do **statycznej areny** (bez Fibi i bez auta). Rafał wchodzi pieszo z prawej, po czym krótki **dialog z portretem** (2 kwestie, ok. 4 s).
+### Misja 2 – boss: Rafał
+1. Po 1000 pkt: ten sam przelot do **statycznej areny**; **Fibi stoi przy prawej krawędzi** (nie przeszkadza i nie można jej trafić – ani Arek, ani Rafał nie wchodzą na nią). Rafał wchodzi pieszo z prawej, po czym krótki **dialog z portretem** (2 kwestie, ok. 4 s).
 2. **Rafał ma 4 życia** (4 kastety w HUD). Trafiasz go **mieczem** albo **skokiem na głowę** (jak Kamila); po trafieniu jest ogłuszony i odskakuje.
 3. **Walka na pięści (z bliska):** idzie do Arka, **zamach (miga, wykrzyknik)** → **prosty** → krótka pauza → **sierpowy**. Trafienie = −1 życie + **odrzut**. Po kombinacji odpoczywa (wtedy go bij). Ciosy można przeskoczyć (pięść mierzy w tułów).
 4. **Rzut kastetem (z daleka, od ok. 110 px):** zamach z kastetem w górze i złotą poświatą → **obracający się kastet** leci nisko (**przeskocz**) albo wysoko (**nie skacz**). **Miecz odbija kastet** (dźwięk „klang”).
 5. **Poniżej połowy życia (≤2)** wpada w szał: ~1,4× szybszy, krótsze zapowiedzi i przerwy, czerwona poświata, czasem **dwa kastety pod rząd**.
-6. Zasady jak przy Kamilu: porażka = „TRY AGAIN” od checkpointu areny (3 życia). Po wygranej Rafał pada i znika, a gra przechodzi płynnie w misję 3.
+6. Zasady jak przy Kamilu: porażka = „TRY AGAIN” od checkpointu areny (3 życia). Po wygranej Rafał pada, **nadjeżdża ksiądz Kamil** (auto z dźwiękiem silnika i hamulców), wysiada, **zabiera Rafała do auta**, podjeżdża po **Fibi** i odjeżdża w prawo (ok. 6 s, sterowanie zablokowane); ekran rusza dalej → misja 3.
 7. Ustawienia: `CFG.RAFAL` w `game.js`; grafiki `assets/game/rafal_*.png` (z `tools/process_assets.py`), dźwięki `punch`, `throw`, `clang` w `audio.js`; muzyka jak przy pierwszym bossie.
 
 ### Misja 4 – boss: ksiądz Kamil
-1. Po 3000 pkt sterowanie się blokuje, ekran szybko przesuwa się w prawo (Arek ląduje przy lewej krawędzi, Fibi stoi po prawej), po czym zatrzymuje się – to **statyczna arena**, w której Arek chodzi swobodnie w lewo i prawo.
+1. Po 3000 pkt sterowanie się blokuje, ekran szybko przesuwa się w prawo (Arek ląduje przy lewej krawędzi, Fibi stoi po prawej i zostaje tam przez całą walkę; Fibi pojawia się znów przy kolejnym bossie), po czym zatrzymuje się – to **statyczna arena**, w której Arek chodzi swobodnie w lewo i prawo.
 2. Nadjeżdża auto Kamila, ksiądz wysiada i zaczyna się walka.
 3. **Kamil ma 3 życia** (3 krzyżyki w HUD). Trafiasz go **mieczem** albo **skacząc mu na głowę** (stomp z odbiciem). Po trafieniu jest chwilę nietykalny i ogłuszony; z każdym straconym życiem jest szybszy i częściej rzuca czary.
 4. **Czar:** Kamil unosi świecący **krzyżyk** i wysyła go w lewo lub prawo – **nisko** (przeskocz) albo **wysoko** (nie skacz). Krzyżyk można zbić mieczem.
@@ -98,7 +100,7 @@ Plan z grafikami bossów jest wdrożony w kodzie (misje nieparzyste = bieg, parz
 | Misja | Typ | Boss | Stan w grze |
 |-------|-----|------|-------------|
 | 1 | bieg | – | gotowa (dawny poziom 1) |
-| 2 | boss | **Rafał dres** – walka na pięści (prosty, sierpowy) i **rzut kastetem** (pocisk z obrotem); blizna, złoty łańcuch | gotowa |
+| 2 | boss | **Rafał** (dres) – walka na pięści (prosty, sierpowy) i **rzut kastetem** (pocisk z obrotem); blizna, złoty łańcuch | gotowa |
 | 3 | bieg | – | gotowa (dawny poziom 2) |
 | 4 | boss | **ksiądz Kamil** | gotowa (dawny pierwszy boss, zabiera Fibi) |
 | 5 | bieg | – | **zastępcza** – kopia misji 3 z celem 1500 pkt (`CFG.LEVEL3`), brak docelowej treści |
@@ -118,6 +120,7 @@ Cały dźwięk jest **generowany w przeglądarce** (Web Audio API, plik `audio.j
 **Efekty**
 - **Transformacja** (intro i zdjęcie zbroi w zakończeniu): narastające ładowanie (świst + piła + pisk, kończy się dokładnie w chwili uderzenia) → **grzmot** (trzask + dudniący pogłos, muzyka na chwilę przycichnie) → **migoczące arpeggio iskier** → **power chord** przy odsłonięciu. Zgrane z animacją (czasy z `CFG`).
 - **Auto Kamila:** silnik (piła + sub + przester, dudnienie LFO, szum) z wysokością i głośnością zależną od prędkości auta, **panoramą stereo** i efektem Dopplera przy przejeździe w intro; wjazd na arenę (obie walki), odjazd z Fibim; **pisk hamulców** przy zatrzymaniu i **trzaśnięcie drzwiami** (wysiadanie Kamila, wsiadanie, Fibi w aucie).
+- **Utrata życia:** `lifelost` (pulsowa „smutna trąbka” z vibrato i filtrem wah, ok. 1 s) + chwilę później `haha` (3 krótkie „ha”), podgląd offline `sfx_lifelost`; **błyskawica** (`boost`: wznoszący zjazd w górę).
 - Pozostałe: skok, cięcie, trafienie, serduszko, krzyżyk, uderzenie w auto, wybuch.
 
 **Sterowanie dźwiękiem**
@@ -201,7 +204,7 @@ assets/
 
 ## Assety i placeholdery
 
-**Gotowe (własne grafiki):** Arek w zbroi (bieg 6 klatek, skok 5 faz przełączanych wg prędkości pionowej, atak), Arek casual (bieg 6 klatek, skok 5 faz, stoi), ksiądz Kamil (stoi, chód 1–2, portret; nowe: śmiejący się chód `ksiadz_kamil_laugh_walk_1..4` + dymek `ksiadz_kamil_bubble_haha`), samochód Kamila (2 klatki jazdy + wariant z pustym siedzeniem generowany przez `process_assets.py`), Fibi (stoi, chód 1–2, portret).
+**Gotowe (własne grafiki):** Arek w zbroi (bieg 6 klatek, skok 5 faz przełączanych wg prędkości pionowej, atak), Arek casual (bieg 6 klatek, skok 5 faz, stoi), ksiądz Kamil (stoi, chód 1–2, portret; śmiejący się chód `ksiadz_kamil_laugh_walk_1..4` + dymek `ksiadz_kamil_bubble_haha` – w grze przy utracie życia, przetwarzane do `assets/game/kamil_laugh_walk_*.png` i `kamil_bubble_haha.png`), samochód Kamila (2 klatki jazdy + wariant z pustym siedzeniem generowany przez `process_assets.py`), Fibi (stoi, chód 1–2, portret).
 
 **Placeholdery (rysowane w kodzie, do podmiany na docelowe grafiki):** beczka, potworki (ghoul, imp, nietoperz), krzyżyk-czar, serduszka, droga, tło (zachód słońca, wzgórza, drzewa), przyciski dotykowe, miecz i błyskawica w intro (w grafikach casual nie ma pozy z mieczem).
 
@@ -217,7 +220,7 @@ Szczegóły: wiki → *Assety i grafiki*.
 - Wartości punktów potworków i balans trudności są tymczasowe.
 - Porażka w biegu (przed areną bossa) restartuje grę od misji 1; checkpoint działa tylko w arenie bossa (po wejściu do areny, np. po przegranej z Rafałem wracasz od razu do jego areny).
 
-**Zrobione:** ekran tytułowy, intro z transformacją, misje 1–6 (biegi + bossowie: Rafał dres, Kamil, finałowy Kamil; misja 5 zastępcza), finałowy boss (auto do zniszczenia, szał), zakończenie z piorunem i napisem WYGRAŁEŚ!, ekran KONIEC GRY, muzyka chiptune + przycisk mute (M), sterowanie dotykowe, animacja biegu (6 klatek) i skoku (5 faz), checkpoint w arenie bossa.
+**Zrobione:** ekran tytułowy, intro z transformacją, misje 1–6 (biegi + bossowie: Rafał, Kamil, finałowy Kamil; misja 5 zastępcza), finałowy boss (auto do zniszczenia, szał), zakończenie z piorunem i napisem WYGRAŁEŚ!, ekran KONIEC GRY, muzyka chiptune + przycisk mute (M), sterowanie dotykowe, animacja biegu (6 klatek) i skoku (5 faz), checkpoint w arenie bossa.
 
 **Do zrobienia:** docelowe grafiki potworków/beczek/tła, dopracowanie balansu i dźwięku.
 
