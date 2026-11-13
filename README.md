@@ -34,6 +34,18 @@ Pierwszy ekran po uruchomieniu gry:
 
 ---
 
+## Intro (przerywnik)
+
+Krótka scenka po kliknięciu **START NEW GAME**, przed poziomem 1:
+1. Arek idzie spokojnie **w lewo** z psem na smyczy po szutrowej drodze.
+2. Obok nich przejeżdża **ksiądz w aucie**.
+3. Pies się płoszy, wyrywa i **ucieka w prawo**.
+4. Arek dobywa **miecza** i zaczyna **biec za psem w prawo** – startuje poziom 1.
+
+Grafiki do zrobienia: pies (mały, czarno-brązowy), ksiądz, auto.
+
+---
+
 ## Poziom 1 – zasady
 
 ### Cel
