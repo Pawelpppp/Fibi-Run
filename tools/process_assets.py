@@ -153,7 +153,19 @@ def main():
     rgb, mask = to_game(face, size)
     quantize([(rgb, mask)], 64)[0].save(os.path.join(OUT, 'face.png'))
     print('face', size)
+    copy_car()
     write_bundle()
+
+
+def copy_car():
+    """Samochód księdza Kamila (intro): już RGBA 219x100 z czystą alfą, w skali 1:1.
+    Kopiujemy klatki animacji do assets/game/ jako car_1.png / car_2.png."""
+    for n in ('1', '2'):
+        im = Image.open(os.path.join(ARCHIVE_DIR, f'ksiadz_kamil_car_{n}.png')).convert('RGBA')
+        a = np.array(im)
+        a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)   # alfa binarna (pixel art)
+        Image.fromarray(a, 'RGBA').save(os.path.join(OUT, f'car_{n}.png'))
+    print('car frames copied')
 
 
 def write_bundle():

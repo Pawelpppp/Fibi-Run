@@ -1,7 +1,7 @@
 'use strict';
 /* =====================================================================
    ArekRun - retro side-scroller (Phaser 3), 16-bit pixel art
-   Sceny: Boot -> Title -> Play (poziom 1; ekrany końca gry/wygranej to nakładki)
+   Sceny: Boot -> Title -> Intro -> Play (poziom 1; ekrany końca gry/wygranej to nakładki)
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -50,6 +50,20 @@ const CFG = {
     HEART_CHANCE: 0.14,     // szansa na serduszko w przerwie między przeszkodami
     HEART_GUARANTEE: 9,     // po tylu przeszkodach bez serduszka na pewno się pojawi
     HEART_HEIGHT: 74,       // wysokość serduszka nad ziemią (trzeba podskoczyć)
+
+    // --- intro (przerywnik przed poziomem 1) ---
+    INTRO_AREK_X: 170,        // gdzie na ekranie stoi Arek (tam też zaczyna poziom 1)
+    INTRO_WALK_SPEED: 34,      // prędkość spaceru (px/s, tło przesuwa się w prawo)
+    INTRO_DOG_DIST: 58,        // odległość psa od Arka (pies idzie za nim, po prawej)
+    INTRO_CAR_START: 4.0,      // s - kiedy wjeżdża samochód
+    INTRO_CAR_SPEED: 170,      // px/s
+    INTRO_CAR_BOTTOM: 252,     // y kół samochodu (dalszy pas drogi, za Arkiem)
+    INTRO_SCARE_TIME: 0.6,     // s - pies się płoszy, zanim zerwie smycz
+    INTRO_TURN_TIME: 0.4,      // s - Arek reaguje i odwraca się
+    INTRO_DRAW_TIME: 0.9,      // s - Arek dobywa miecza (pozycja ataku)
+    INTRO_CHASE_TIME: 2.0,     // s - Arek biegnie za psem, potem startuje poziom 1
+    INTRO_DOG_SPEED: 210,      // px/s - jak szybko ucieka pies
+    INTRO_SKIP_GUARD: 0.4,     // s - tyle ignorujemy "skip", żeby klik START nie pominął intra
 
     // --- tło ---
     TREE_GAP_MIN: 130,      // odstępy między drzewami w tle (px, przestrzeń tła)
@@ -288,6 +302,33 @@ function makeTextures(scene) {
         '...ooo..ooo...',
     ], monPal, 2);
 
+    /* --- pies 14x10 (x2 = 28x20), placeholder: mały czarno-brązowy, zwrócony w PRAWO --- */
+    const dogPal = { k: '#1a1410', n: '#9a5a24', l: '#c98a44', w: '#ffffff' };
+    artTex(scene, 'dog_1', [
+        '.k.......kk...',
+        '.kk.....kkkk..',
+        '..kkkkkkkkkkn.',
+        '..kkkkkkkwkknl',
+        '..kkkkkkkkkknn',
+        '..kknnnnnnkkk.',
+        '...nnnnnnnn...',
+        '...nn....nn...',
+        '...kk....kk...',
+        '..kkk...kkk...',
+    ], dogPal, 2);
+    artTex(scene, 'dog_2', [
+        '.k.......kk...',
+        '.kk.....kkkk..',
+        '..kkkkkkkkkkn.',
+        '..kkkkkkkwkknl',
+        '..kkkkkkkkkknn',
+        '..kknnnnnnkkk.',
+        '...nnnnnnnn...',
+        '....nn..nn....',
+        '....kk..kk....',
+        '...kkk.kkk....',
+    ], dogPal, 2);
+
     /* --- serduszko 9x8 (x2) --- */
     artTex(scene, 'heart', [
         '.ooo.ooo.',
@@ -362,24 +403,27 @@ function buildBackground(scene) {
         bg.layers.push({ f, spr: scene.add.tileSprite(0, 0, W, H, key).setOrigin(0).setScrollFactor(0).setDepth(d) });
     });
     bg.trees = [];
-    bg.nextTreeX = 40;
+    bg.nextTreeX = 40;      // następne drzewo na prawo (przestrzeń tła)
+    bg.leftTreeX = 40;      // następne drzewo na lewo (intro przewija tło w drugą stronę)
     bg.ground = scene.add.tileSprite(0, CFG.ROAD_TOP, W, H - CFG.ROAD_TOP, 'gravel').setOrigin(0).setScrollFactor(0).setDepth(4);
     bg.layers.push({ f: 1, spr: bg.ground });
+    const kinds = ['tree_pine_big', 'tree_pine_small', 'tree_oak'];
+    const addTree = (x) => {
+        const key = kinds[Math.floor(Math.random() * kinds.length)];
+        const spr = scene.add.image(0, CFG.ROAD_TOP + 3, key).setOrigin(0.5, 1).setScrollFactor(0).setDepth(3.5);
+        bg.trees.push({ spr, x });
+    };
+    const gap = () => Phaser.Math.Between(CFG.TREE_GAP_MIN, CFG.TREE_GAP_MAX);
     bg.update = (camX) => {
         const cx = Math.floor(camX);
         bg.layers.forEach(l => { l.spr.tilePositionX = Math.floor(cx * l.f); });
         // drzewa: co jakiś czas przesuwają się w tle (paralaksa)
         const px = camX * CFG.PARALLAX_TREES;
-        while (bg.nextTreeX < px + W + 60) {
-            const kinds = ['tree_pine_big', 'tree_pine_small', 'tree_oak'];
-            const key = kinds[Math.floor(Math.random() * kinds.length)];
-            const spr = scene.add.image(0, CFG.ROAD_TOP + 3, key).setOrigin(0.5, 1).setScrollFactor(0).setDepth(3.5);
-            bg.trees.push({ spr, x: bg.nextTreeX });
-            bg.nextTreeX += Phaser.Math.Between(CFG.TREE_GAP_MIN, CFG.TREE_GAP_MAX);
-        }
+        while (bg.nextTreeX < px + W + 60) { addTree(bg.nextTreeX); bg.nextTreeX += gap(); }
+        while (bg.leftTreeX > px - 60) { bg.leftTreeX -= gap(); addTree(bg.leftTreeX); }
         for (let i = bg.trees.length - 1; i >= 0; i--) {
             const t = bg.trees[i], sx = Math.round(t.x - px);
-            if (sx < -60) { t.spr.destroy(); bg.trees.splice(i, 1); } else t.spr.x = sx;
+            if (sx < -70 || sx > W + 70) { t.spr.destroy(); bg.trees.splice(i, 1); } else t.spr.x = sx;
         }
     };
     return bg;
@@ -413,7 +457,7 @@ class BootScene extends Phaser.Scene {
     constructor() { super('Boot'); }
     preload() {
         this.cameras.main.setBackgroundColor('#0c0818');
-        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'face'];
+        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'face', 'car_1', 'car_2'];
         names.forEach(n => {
             // data-URI (assets/game/assets.js) działa też z file://; fallback: zwykłe pliki
             const src = (window.AREK_ASSETS && window.AREK_ASSETS[n]) || `assets/game/${n}.png`;
@@ -426,6 +470,9 @@ class BootScene extends Phaser.Scene {
             key: 'run', frameRate: 9, repeat: -1,
             frames: ['arek_run_1', 'arek_run_2', 'arek_run_3'].map(key => ({ key })),
         });
+        this.anims.create({ key: 'car_drive', frameRate: 8, repeat: -1, frames: [{ key: 'car_1' }, { key: 'car_2' }] });
+        this.anims.create({ key: 'dog_walk', frameRate: 5, repeat: -1, frames: [{ key: 'dog_1' }, { key: 'dog_2' }] });
+        this.anims.create({ key: 'dog_run', frameRate: 14, repeat: -1, frames: [{ key: 'dog_1' }, { key: 'dog_2' }] });
         this.anims.create({ key: 'monster_walk', frameRate: 4, repeat: -1, frames: [{ key: 'monster_1' }, { key: 'monster_2' }] });
         this.scene.start('Title');
     }
@@ -456,7 +503,8 @@ class TitleScene extends Phaser.Scene {
             if (this.starting) return;
             this.starting = true;
             this.cameras.main.fadeOut(180, 12, 8, 24);
-            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Play'));
+            const next = /[?&]nointro\b/.test(location.search) ? 'Play' : 'Intro';
+            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(next));
         };
         makeButton(this, W / 2, 232, 220, 26, 'START NEW GAME', start, 8);
         const hint = IS_TOUCH ? 'TAP TO START' : 'SPACE OR ENTER';
@@ -477,10 +525,178 @@ class TitleScene extends Phaser.Scene {
 }
 
 /* =====================================================================
+   INTRO: Arek spaceruje w lewo z psem, przejeżdża ksiądz Kamil, pies ucieka,
+   Arek dobywa miecza i biegnie za nim w prawo -> poziom 1
+   ===================================================================== */
+class IntroScene extends Phaser.Scene {
+    constructor() { super('Intro'); }
+
+    create() {
+        this.t = 0;
+        this.camX = 0;
+        this.scroll = -CFG.INTRO_WALK_SPEED;   // tło jedzie w prawo = Arek idzie w lewo
+        this.phase = 'walk';
+        this.phaseT = 0;
+        this.finished = false;
+        this.dogVx = 0;
+        this.bg = buildBackground(this);
+
+        const ax = CFG.INTRO_AREK_X, gy = CFG.GROUND_Y;
+        this.arek = this.add.sprite(ax, gy, 'arek_run_1').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
+        this.arek.play('run');
+        this.arek.anims.timeScale = 0.4;       // powolny spacer
+        this.dog = this.add.sprite(ax + CFG.INTRO_DOG_DIST, gy + 1, 'dog_1').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
+        this.dog.play('dog_walk');
+        this.car = this.add.sprite(-140, CFG.INTRO_CAR_BOTTOM, 'car_1').setOrigin(0.5, 1).setDepth(5).setVisible(false);
+        this.car.play('car_drive');
+        this.slash = this.add.image(0, 0, 'slash').setOrigin(0, 0.5).setDepth(7).setVisible(false);
+        this.leash = this.add.graphics().setDepth(6.5);
+        this.leashState = 'taut';              // 'taut' -> 'hang' po zerwaniu
+
+        // podpowiedź i pomijanie (Spacja / Enter / tap)
+        const hint = IS_TOUCH ? 'TAP - SKIP' : 'SPACE - SKIP';
+        pxText(this, W - 8, 8, hint, { scale: 2, color: '#ffffff', shadow: '#2a1040', ox: 1 }).setDepth(20).setAlpha(0.85);
+        const kb = this.input.keyboard;
+        kb.addKeys('SPACE,ENTER', true);
+        const skip = () => { if (this.t > CFG.INTRO_SKIP_GUARD) this.finish(); };
+        kb.on('keydown-SPACE', skip);
+        kb.on('keydown-ENTER', skip);
+        this.input.on('pointerdown', skip);
+        this.cameras.main.fadeIn(250, 12, 8, 24);
+    }
+
+    bubble(x, y, str, color) {
+        const t = pxText(this, x, y, str, { scale: 3, color: color || '#ffd040', shadow: '#3a1008' }).setDepth(9);
+        this.tweens.add({ targets: t, y: y - 10, duration: 250, ease: 'Back.out' });
+        this.tweens.add({ targets: t, alpha: 0, delay: 650, duration: 250, onComplete: () => t.destroy() });
+    }
+
+    setPhase(p) { this.phase = p; this.phaseT = 0; }
+
+    update(time, delta) {
+        if (this.finished) return;
+        const dt = Math.min(delta, 50) / 1000;
+        this.t += dt; this.phaseT += dt;
+        const arek = this.arek, dog = this.dog, car = this.car, gy = CFG.GROUND_Y;
+
+        // --- samochód ---
+        if (this.t >= CFG.INTRO_CAR_START && car.x < W + 140) {
+            car.setVisible(true);
+            car.x += CFG.INTRO_CAR_SPEED * dt;
+            car.y = CFG.INTRO_CAR_BOTTOM - (Math.floor(this.t * 16) % 2);   // drgania silnika
+        }
+        const carFront = car.x + 100;
+
+        // --- fazy ---
+        if (this.phase === 'walk') {
+            dog.y = gy + 1 - (Math.floor(this.t * 5) % 2);
+            if (car.visible && carFront > dog.x - 70) {          // auto tuż obok psa -> pies się płoszy
+                this.setPhase('scare');
+                dog.anims.stop(); dog.setTexture('dog_1');
+                this.bubble(dog.x, dog.y - 28, '!', '#ff5050');
+                this.tweens.add({ targets: dog, y: gy + 1 - 12, duration: 120, yoyo: true, repeat: 1 });
+            }
+        } else if (this.phase === 'scare') {
+            dog.x += Math.sin(this.t * 90) * 0.6;                 // dygocze
+            if (this.phaseT >= CFG.INTRO_SCARE_TIME) {            // smycz pęka, pies w nogi
+                this.setPhase('turn');
+                this.leashState = 'hang';
+                this.leashSnapT = 0;
+                this.burst(dog.x - 8, dog.y - 12, 0xe0c080);
+                dog.setFlipX(false); dog.play('dog_run'); dog.y = gy + 1;
+                this.dogVx = 40;
+                arek.anims.stop();                                // Arek staje
+                this.bubble(arek.x, arek.y - 76, '?!', '#ffffff');
+            }
+        } else if (this.phase === 'turn') {
+            if (this.phaseT >= CFG.INTRO_TURN_TIME) {
+                this.setPhase('draw');
+                arek.setFlipX(false).setTexture('arek_attack');   // dobywa miecza
+                this.slashT = 0.5;
+            }
+        } else if (this.phase === 'draw') {
+            if (this.phaseT >= CFG.INTRO_DRAW_TIME) {
+                this.setPhase('chase');
+                arek.play('run');
+                arek.anims.timeScale = 1;
+            }
+        } else if (this.phase === 'chase') {
+            if (this.phaseT >= CFG.INTRO_CHASE_TIME) this.finish();
+        }
+
+        // --- pies ucieka w prawo ---
+        if (this.dogVx > 0) {
+            this.dogVx = Math.min(CFG.INTRO_DOG_SPEED, this.dogVx + 300 * dt);
+            dog.x += this.dogVx * dt;
+            if (dog.x > W + 40) dog.setVisible(false);
+        }
+
+        // --- przewijanie tła: spacer w lewo -> stop -> bieg w prawo ---
+        let target = -CFG.INTRO_WALK_SPEED;
+        if (this.phase === 'turn' || this.phase === 'draw') target = 0;
+        if (this.phase === 'chase') target = CFG.SCROLL_SPEED;
+        if (this.phase === 'scare') target = -CFG.INTRO_WALK_SPEED * 0.4;
+        this.scroll += (target - this.scroll) * Math.min(1, dt * 5);
+        this.camX += this.scroll * dt;
+        this.bg.update(this.camX);
+
+        // --- smuga miecza ---
+        if (this.slashT > 0) {
+            this.slashT -= dt;
+            this.slash.setVisible(true).setPosition(arek.x + 6, arek.y - 30).setAlpha(Math.min(1, this.slashT / 0.3));
+        } else this.slash.setVisible(false);
+
+        this.drawLeash(dt);
+    }
+
+    drawLeash(dt) {
+        const g = this.leash, arek = this.arek, dog = this.dog;
+        g.clear();
+        const hx = Math.round(arek.x + (arek.flipX ? 11 : -11)), hy = Math.round(arek.y - 25);
+        const pts = [];
+        const line = (x0, y0, x1, y1, sag) => {
+            for (let i = 0; i <= 40; i++) {
+                const u = i / 40;
+                pts.push([Math.round(x0 + (x1 - x0) * u), Math.round(y0 + (y1 - y0) * u + Math.sin(Math.PI * u) * sag)]);
+            }
+        };
+        if (this.leashState === 'taut') {
+            const cx = Math.round(dog.x - 11 + (dog.flipX ? 0 : 22)), cy = Math.round(dog.y - 12);
+            line(hx, hy, cx, cy, this.phase === 'scare' ? 1 : 7);
+        } else {
+            this.leashSnapT = (this.leashSnapT || 0) + dt;
+            const sway = Math.sin(this.leashSnapT * 7) * 3 * Math.exp(-this.leashSnapT * 1.5);
+            line(hx, hy, hx + 4 + sway, hy + 20, 1);    // urwana smycz zwisa z ręki
+        }
+        g.fillStyle(0x3a2410, 1);
+        pts.forEach(([x, y]) => g.fillRect(x, y + 1, 1, 1));
+        g.fillStyle(0xd8b070, 1);
+        pts.forEach(([x, y]) => g.fillRect(x, y, 1, 1));
+    }
+
+    burst(x, y, tint) {
+        for (let i = 0; i < 8; i++) {
+            const d = this.add.image(x, y, 'dot').setTint(tint).setDepth(9);
+            const ang = Math.random() * Math.PI * 2, r = 8 + Math.random() * 16;
+            this.tweens.add({ targets: d, x: x + Math.cos(ang) * r, y: y + Math.sin(ang) * r - 6, alpha: 0, duration: 400, onComplete: () => d.destroy() });
+        }
+    }
+
+    finish() {
+        if (this.finished) return;
+        this.finished = true;
+        this.cameras.main.fadeOut(220, 12, 8, 24);
+        this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Play', { startX: CFG.INTRO_AREK_X }));
+    }
+}
+
+/* =====================================================================
    POZIOM 1
    ===================================================================== */
 class PlayScene extends Phaser.Scene {
     constructor() { super('Play'); }
+
+    init(data) { this.startX = (data && data.startX) || 130; }
 
     create() {
         this.state = 'play';
@@ -502,7 +718,7 @@ class PlayScene extends Phaser.Scene {
         this.bg = buildBackground(this);
 
         // --- Arek ---
-        this.a = { x: 130, y: CFG.GROUND_Y, vy: 0, onGround: true };
+        this.a = { x: this.startX, y: CFG.GROUND_Y, vy: 0, onGround: true };
         this.arek = this.add.sprite(this.a.x, this.a.y, 'arek_run_1').setOrigin(0.5, 1).setDepth(6);
         this.arek.play('run');
         this.pose = 'run';
@@ -842,7 +1058,7 @@ const game = new Phaser.Game({
         height: H,
     },
     input: { activePointers: 4, keyboard: { capture: [KC_.SPACE, KC_.ALT, KC_.LEFT, KC_.RIGHT, KC_.UP, KC_.DOWN, KC_.ENTER] } },
-    scene: [BootScene, TitleScene, PlayScene],
+    scene: [BootScene, TitleScene, IntroScene, PlayScene],
 });
 window.__arekGame = game;   // do debugowania / testów
 
