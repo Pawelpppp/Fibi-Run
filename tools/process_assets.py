@@ -29,7 +29,11 @@ OUT = os.path.join(ROOT, 'assets', 'game')
 ARCHIVE_FRAMES = ['run_1', 'run_2', 'run_3', 'jump', 'attack']
 ARCHIVE_DIR = os.path.join(ROOT, 'assets', 'sprites')
 CASUAL_H_GAME = 60     # wysokość Arka casual (px) - zbliżona do Arka w zbroi (64 px)
-CASUAL_FRAMES = ['arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_stand']
+CASUAL_STAND = ['arek_casual_stand']
+CASUAL_RUN6 = [f'arek_casual_run6_{i}' for i in range(1, 7)]
+CASUAL_JUMP = [f'arek_casual_jump_{i}' for i in range(1, 6)]
+ARMOR_RUN6 = [f'arek_run6_{i}' for i in range(1, 7)]
+ARMOR_JUMP = [f'arek_jump_{i}' for i in range(1, 6)]
 KAMIL_H_GAME = 64      # wysokość księdza Kamila w grze (px) - jak Arek
 KAMIL_FRAMES = ['ksiadz_kamil_walk_1', 'ksiadz_kamil_walk_2', 'ksiadz_kamil_stand']
 DOG_H_GAME = 28        # wysokość Fibi w grze (px) - wyraźnie mniejsza od Arka (64 px)
@@ -129,17 +133,35 @@ def quantize(imgs_masks, colors=PALETTE_COLORS):
 
 
 def head_anchor(rgb, mask):
-    """Kotwica poziomna klatki = środek głowy: najgęstsze okno HEAD_WIN px w górnych HEAD_ROWS rzędach
-    (pomija czerwoną pelerynę, która w skoku wystaje nad głowę). Zwraca (ax, top_y)."""
+    """Kotwica poziomna klatki = środek głowy. Pomija czerwoną pelerynę i cienkie wystające
+    elementy (uniesiony miecz, dłonie nad głową), szukając pierwszego szerszego pasa sylwetki.
+    Zwraca (ax, top_y)."""
     a = np.array(rgb).astype(int)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
     red = (r > 85) & (r > g * 1.7) & (r > b * 1.7)
     m = mask & ~red
     ys, xs = np.where(m)
-    top = ys.min()
+    if len(ys) == 0:
+        ys, xs = np.where(mask)
+        return int(mask.shape[1] // 2), int(ys.min())
+    row_w = m.sum(1)
+    max_w = int(row_w.max())
+    # Pomijamy cienki "kolec" nad głową (uniesiony miecz, szer. kilka px).
+    # Próg musi być niższy niż HEAD_WIN: po odjęciu czerwonej koszulki / peleryny
+    # sama głowa casual ma często tylko ~9–13 px i nie może zostać przeskoczona.
+    thresh = max(8, min(HEAD_WIN, int(0.22 * max_w)))
+    rows = np.where(row_w > 0)[0]
+    top = int(rows[0])
+    for y in rows:
+        band = row_w[y:y + HEAD_ROWS]
+        if row_w[y] >= thresh and band.mean() >= thresh * 0.65:
+            top = int(y)
+            break
+    w = m.shape[1]
+    win = min(HEAD_WIN, w)
     prof = m[top:top + HEAD_ROWS].sum(0)
-    best = max(range(0, m.shape[1] - HEAD_WIN + 1), key=lambda x: prof[x:x + HEAD_WIN].sum())
-    return best + HEAD_WIN // 2, top
+    best = max(range(0, w - win + 1), key=lambda x: int(prof[x:x + win].sum()))
+    return best + win // 2, top
 
 
 def align_set(cut, names, base_scale, key_of=lambda n: n):
@@ -169,9 +191,40 @@ def align_set(cut, names, base_scale, key_of=lambda n: n):
     return items
 
 
+def load_sprite(name):
+    """Wczytuje oryginał z assets/sprites: RGBA z prawdziwą alfą albo RGB z szachownicą."""
+    im = Image.open(os.path.join(ARCHIVE_DIR, name + '.png'))
+    has_alpha = im.mode in ('RGBA', 'LA') and (np.array(im.convert('RGBA'))[..., 3] < 128).any()
+    im = im.convert('RGBA') if has_alpha else remove_checkerboard(im)
+    return im.crop(bbox(im))
+
+
+def process_armor_anims():
+    """Nowe klatki biegu (6) i skoku (5) Arka w zbroi -> assets/game/arek_run_1..6, arek_jump_1..5.
+    Skala liczona z mediany wysokości klatek biegu, żeby sylwetka miała ten sam rozmiar
+    co dotychczasowy bieg (~FRAME_H_GAME). Wyższe klatki (uniesiony miecz, peleryna)
+    dostają wyższą ramkę; stopy na wspólnej linii, kotwica w głowie."""
+    names = ARMOR_RUN6 + ARMOR_JUMP
+    cut = {n: load_sprite(n) for n in names}
+    for n in names:
+        print(n, 'bbox size', cut[n].size)
+    run_hs = [cut[n].height for n in ARMOR_RUN6]
+    scale = FRAME_H_GAME / float(np.median(run_hs))
+    print('armor anim scale %.4f (median run h=%s -> %d px)' % (scale, int(np.median(run_hs)), FRAME_H_GAME))
+    items = align_set(cut, names, scale)
+    print('armor anim frame', items[0][0].size)
+    out_names = [f'arek_run_{i}' for i in range(1, 7)] + [f'arek_jump_{i}' for i in range(1, 6)]
+    for n, im in zip(out_names, quantize(items)):
+        im.save(os.path.join(OUT, n + '.png'))
+    stale = os.path.join(OUT, 'arek_jump.png')
+    if os.path.exists(stale):
+        os.remove(stale)
+        print('removed stale arek_jump.png')
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
-    # ---- Arek
+    # ---- Arek: stary zestaw tylko dla ataku (bieg/skok pochodzą z nowych klatek)
     cut = {}
     for n in ARCHIVE_FRAMES:
         im = remove_checkerboard(Image.open(os.path.join(ARCHIVE_DIR, n + '.png')))
@@ -181,9 +234,11 @@ def main():
     max_h = max(c.height for n, c in cut.items())
     scale = FRAME_H_GAME / max_h
     items = align_set(cut, ARCHIVE_FRAMES, scale)
-    print('arek frame', items[0][0].size)
+    print('arek archive frame', items[0][0].size)
     for n, im in zip(ARCHIVE_FRAMES, quantize(items)):
-        im.save(os.path.join(OUT, f'arek_{n}.png'))
+        if n == 'attack':
+            im.save(os.path.join(OUT, f'arek_{n}.png'))
+    process_armor_anims()
     process_title_face()
     process_casual()
     process_kamil()
@@ -210,16 +265,16 @@ def process_title_face():
 
 def process_casual():
     """Arek casual (t-shirt, spodenki) do intro -> assets/game/arek_casual_*.png.
-    Sprite'y są już RGBA (160 px wysokości); wspólna skala -> CASUAL_H_GAME, stopy na dole,
-    klatki biegu w jednej szerokiej ramce, 'stand' osobno; wspólna paleta."""
-    cut = {}
-    for n in CASUAL_FRAMES:
-        im = Image.open(os.path.join(ARCHIVE_DIR, n + '.png'))
-        im = im.convert('RGBA') if im.mode == 'RGBA' and (np.array(im)[..., 3] == 0).any() else remove_checkerboard(im)
-        cut[n] = im.crop(bbox(im))
-    scale = CASUAL_H_GAME / max(c.height for c in cut.values())
-    items = align_set(cut, CASUAL_FRAMES, scale)
-    for n, im in zip(CASUAL_FRAMES, quantize(items, 48)):
+    Sprite'y są już RGBA; skala z klatek biegu/stania -> CASUAL_H_GAME (skok może być
+    niższy przez przysiad albo trochę wyższy przez uniesione ręce). Stopy na dole,
+    kotwica w głowie, wspólna paleta. Bieg: arek_casual_run_1..6, skok: arek_casual_jump_1..5."""
+    names = CASUAL_RUN6 + CASUAL_JUMP + CASUAL_STAND
+    cut = {n: load_sprite(n) for n in names}
+    scale = CASUAL_H_GAME / max(cut[n].height for n in CASUAL_RUN6 + CASUAL_STAND)
+    print('casual scale %.4f' % scale)
+    items = align_set(cut, names, scale)
+    out_names = [f'arek_casual_run_{i}' for i in range(1, 7)] + [f'arek_casual_jump_{i}' for i in range(1, 6)] + CASUAL_STAND
+    for n, im in zip(out_names, quantize(items, 48)):
         im.save(os.path.join(OUT, n + '.png'))
     print('casual frame', items[0][0].size)
 

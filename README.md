@@ -134,11 +134,10 @@ audio.js                # muzyka chiptune i efekty (Web Audio), przycisk/klawisz
 tools/process_assets.py # przetwarzanie oryginalnych grafik -> assets/game + assets.js
 assets/
 ├── sprites/            # oryginały (Arek, Kamil, auto, Fibi, casual) + podglądy *_x4.png
-│   │                   #   nowe klatki animacji (#3, jeszcze niepodpięte w grze):
-│   ├── arek_casual_run6_1..6.png   # casual: bieg, 6 klatek (111×154 … 68×159; wys. ≤160)
+│   ├── arek_casual_run6_1..6.png   # casual: bieg, 6 klatek
 │   ├── arek_casual_jump_1..5.png   # casual: skok 5 faz (przysiad, wznoszenie, szczyt, opadanie, lądowanie)
-│   ├── arek_run6_1..6.png          # zbroja: bieg, 6 klatek (wys. 129–160)
-│   └── arek_jump_1..5.png          # zbroja: skok 5 faz (wys. 126–207, z uniesionym mieczem)
+│   ├── arek_run6_1..6.png          # zbroja: bieg, 6 klatek
+│   ├── arek_jump_1..5.png          # zbroja: skok 5 faz (w tym uniesiony miecz)
 │   │                   #   utrata życia – Kamil mija gracza i się śmieje (jeszcze niepodpięte w grze):
 │   ├── ksiadz_kamil_laugh_walk_1..4.png  # Kamil idzie w prawo, śmieje się, głowa do gracza (75–78×160), cykl 4 klatek
 │   └── ksiadz_kamil_bubble_haha.png      # dymek „HA HA!” (96×50, ogonek w lewo-dół; rysowany pikselowo)
@@ -148,7 +147,7 @@ assets/
 
 ## Assety i placeholdery
 
-**Gotowe (własne grafiki):** Arek w zbroi (bieg 1–3, skok, atak; nowe: bieg 6 klatek `arek_run6_*`, skok 5 faz `arek_jump_*`), Arek casual (bieg 1–3, stoi; nowe: bieg 6 klatek `arek_casual_run6_*`, skok 5 faz `arek_casual_jump_*`), ksiądz Kamil (stoi, chód 1–2, portret; nowe: śmiejący się chód `ksiadz_kamil_laugh_walk_1..4` + dymek `ksiadz_kamil_bubble_haha`), samochód Kamila (2 klatki jazdy + wariant z pustym siedzeniem generowany przez `process_assets.py`), Fibi (stoi, chód 1–2, portret).
+**Gotowe (własne grafiki):** Arek w zbroi (bieg 6 klatek, skok 5 faz przełączanych wg prędkości pionowej, atak), Arek casual (bieg 6 klatek, skok 5 faz, stoi), ksiądz Kamil (stoi, chód 1–2, portret; nowe: śmiejący się chód `ksiadz_kamil_laugh_walk_1..4` + dymek `ksiadz_kamil_bubble_haha`), samochód Kamila (2 klatki jazdy + wariant z pustym siedzeniem generowany przez `process_assets.py`), Fibi (stoi, chód 1–2, portret).
 
 **Placeholdery (rysowane w kodzie, do podmiany na docelowe grafiki):** beczka, potworki (ghoul, imp, nietoperz), krzyżyk-czar, serduszka, droga, tło (zachód słońca, wzgórza, drzewa), przyciski dotykowe, miecz i błyskawica w intro (w grafikach casual nie ma pozy z mieczem).
 
@@ -159,12 +158,12 @@ Szczegóły: wiki → *Assety i grafiki*.
 **Znane ograniczenia**
 - Muzyka i efekty są proceduralnie syntezowane (placeholder jakościowy – docelowo można podmienić na nagrane utwory).
 - Piktogramy ikony głośnika i polskie znaki w czcionce 5×7 są uproszczone.
-- Spacer casual w intro korzysta z istniejących klatek (ta sama noga z przodu) – docelowo warto dorysować klatki z przeciwną nogą.
-- Skala głowy Arka w skoku i ataku skorygowana ręcznie (`HEAD_SCALE` w skrypcie grafik).
+- Spacer casual w intro używa dwóch klatek biegu (przeciwne nogi) na przemian ze staniem – nie ma osobnego cyklu chodu.
+- Skala głowy Arka w starej klatce ataku skorygowana ręcznie (`HEAD_SCALE` w skrypcie grafik).
 - Wartości punktów potworków i balans trudności są tymczasowe.
 - Porażka w poziomie 1 lub 2 (przed areną bossa) restartuje grę od poziomu 1; checkpoint działa tylko w arenie bossa.
 
-**Zrobione:** ekran tytułowy, intro z transformacją, poziom 1, boss Kamil, poziom 2, finałowy boss (auto do zniszczenia, szał), zakończenie z piorunem i napisem WYGRAŁEŚ!, ekran KONIEC GRY, muzyka chiptune + przycisk mute (M), sterowanie dotykowe, animacja biegu, checkpoint w arenie bossa.
+**Zrobione:** ekran tytułowy, intro z transformacją, poziom 1, boss Kamil, poziom 2, finałowy boss (auto do zniszczenia, szał), zakończenie z piorunem i napisem WYGRAŁEŚ!, ekran KONIEC GRY, muzyka chiptune + przycisk mute (M), sterowanie dotykowe, animacja biegu (6 klatek) i skoku (5 faz), checkpoint w arenie bossa.
 
 **Do zrobienia:** docelowe grafiki potworków/beczek/tła, dopracowanie balansu i dźwięku.
 

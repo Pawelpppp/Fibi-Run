@@ -74,11 +74,14 @@ const CFG = {
     INTRO_DOG_SPEED: 210,      // px/s - jak szybko ucieka pies
     INTRO_SKIP_GUARD: 0.4,     // s - tyle ignorujemy "skip", żeby klik START nie pominął intra
 
-    // --- animacja biegu / chodu ---
-    RUN_FPS: 10,                // klatek/s przy prędkości SPEED_NORMAL (cykl 1-2-3-2 = ~2,5 kroku/s)
+    // --- animacja biegu / chodu / skoku ---
+    RUN_FPS: 13,                // klatek/s przy SPEED_NORMAL (cykl 6 klatek ≈ 2,2 kroku/s)
     RUN_TIMESCALE_MIN: 0.7,     // tempo animacji = prędkość Arka / SPEED_NORMAL, w tych granicach
     RUN_TIMESCALE_MAX: 1.9,
     WALK_FPS: 3,                // tempo spaceru casual w intro (klatek/s przy INTRO_WALK_SPEED)
+    JUMP_CROUCH_TIME: 0.07,     // s - klatka przysiadu tuż po wybiciu
+    JUMP_LAND_TIME: 0.10,       // s - klatka lądowania po kontakcie z ziemią
+    JUMP_APEX_VY: 70,           // |vy| poniżej tego = poza szczytu skoku
     SLASH_OFFSET_X: 12,         // przesunięcie błysku miecza od środka (głowy) Arka
 
     // --- przejście po poziomie 1 i walka z bossem (ksiądz Kamil) ---
@@ -697,7 +700,14 @@ class BootScene extends Phaser.Scene {
     constructor() { super('Boot'); }
     preload() {
         this.cameras.main.setBackgroundColor('#0c0818');
-        const names = ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_jump', 'arek_attack', 'fibi_face', 'car_1', 'car_2', 'car_empty_1', 'car_empty_2', 'arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_stand', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand', 'kamil_stand', 'kamil_walk_1', 'kamil_walk_2'];
+        const names = [
+            'arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_run_4', 'arek_run_5', 'arek_run_6',
+            'arek_jump_1', 'arek_jump_2', 'arek_jump_3', 'arek_jump_4', 'arek_jump_5', 'arek_attack',
+            'fibi_face', 'car_1', 'car_2', 'car_empty_1', 'car_empty_2',
+            'arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_run_4', 'arek_casual_run_5', 'arek_casual_run_6',
+            'arek_casual_jump_1', 'arek_casual_jump_2', 'arek_casual_jump_3', 'arek_casual_jump_4', 'arek_casual_jump_5',
+            'arek_casual_stand', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand', 'kamil_stand', 'kamil_walk_1', 'kamil_walk_2',
+        ];
         names.forEach(n => {
             // data-URI (assets/game/assets.js) działa też z file://; fallback: zwykłe pliki
             const src = (window.AREK_ASSETS && window.AREK_ASSETS[n]) || `assets/game/${n}.png`;
@@ -707,18 +717,18 @@ class BootScene extends Phaser.Scene {
     create() {
         makeTextures(this);
         this.anims.create({
-            // ping-pong 1-2-3-2: pozy "wykrok" (1,3) przeplatane pozą "mijanie" (2) - bez skoku 3->1
+            // pełny cykl 6 klatek (lewa i prawa noga)
             key: 'run', frameRate: CFG.RUN_FPS, repeat: -1,
-            frames: ['arek_run_1', 'arek_run_2', 'arek_run_3', 'arek_run_2'].map(key => ({ key })),
+            frames: [1, 2, 3, 4, 5, 6].map(i => ({ key: 'arek_run_' + i })),
         });
         this.anims.create({
             key: 'casual_run', frameRate: CFG.RUN_FPS, repeat: -1,
-            frames: ['arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_run_2'].map(key => ({ key })),
+            frames: [1, 2, 3, 4, 5, 6].map(i => ({ key: 'arek_casual_run_' + i })),
         });
-        // spacer: krok (casual_run_2: stopy na ziemi) na przemian z pozą stojącą (mijanie nóg) - bez fazy lotu jak w biegu
+        // spacer: dwie bardziej pionowe klatki biegu (przeciwne nogi) na przemian ze staniem
         this.anims.create({
             key: 'casual_walk', frameRate: CFG.WALK_FPS, repeat: -1,
-            frames: ['arek_casual_run_2', 'arek_casual_stand', 'arek_casual_run_2', 'arek_casual_stand'].map(key => ({ key })),
+            frames: ['arek_casual_run_3', 'arek_casual_stand', 'arek_casual_run_6', 'arek_casual_stand'].map(key => ({ key })),
         });
         this.anims.create({ key: 'car_drive', frameRate: 8, repeat: -1, frames: [{ key: 'car_1' }, { key: 'car_2' }] });
         this.anims.create({ key: 'dog_walk', frameRate: 4, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
@@ -1017,11 +1027,11 @@ class IntroScene extends Phaser.Scene {
         if (P < CFG.INTRO_TRANSFORM_TIME * 0.5) {
             // sylwetka miga biało między ubraniem a zbroją
             const alt = Math.floor(P * 16) % 2;
-            arek.setTexture(alt ? 'arek_jump' : 'arek_casual_stand').setTintFill(0xffffff);
+            arek.setTexture(alt ? 'arek_jump_2' : 'arek_casual_stand').setTintFill(0xffffff);
         } else if (!this.revealed) {
             this.revealed = true;                                   // odsłonięcie: złota zbroja
             audioSfx('reveal');
-            arek.setTexture('arek_jump').clearTint().setScale(1.18);
+            arek.setTexture('arek_jump_2').clearTint().setScale(1.18);
             this.sword.setVisible(false);
             this.armG.clear();
             this.cameras.main.flash(220, 255, 240, 180);
@@ -1121,7 +1131,7 @@ class PlayScene extends Phaser.Scene {
         if (this.carSnd) this.carSnd.stop(0.05);
         this.carSnd = null;
         this.events.once('shutdown', () => { if (this.carSnd) { this.carSnd.stop(0.05); this.carSnd = null; } });
-        this.final = false; this.bossReached = false; this.arekManual = false; this.arekDY = 0; this.endVx = 0; this.endTarget = null; this.endDog = null; this.endDone = false;
+        this.final = false; this.bossReached = false; this.arekManual = false; this.arekDY = 0; this.endVx = 0; this.endTarget = null; this.endDog = null; this.endDone = false; this.jumpCrouchT = 0; this.jumpLandT = 0;
         this.bossHudOn = false; this.heroMoving = false;
         this.spawning = true;
         this.nextObstacleX = CFG.FIRST_OBSTACLE_X;
@@ -1423,12 +1433,20 @@ class PlayScene extends Phaser.Scene {
 
         // --- skok / grawitacja ---
         if (jumpPress) this.jumpBuf = CFG.JUMP_BUFFER; else this.jumpBuf = Math.max(0, this.jumpBuf - dt);
-        if (this.jumpBuf > 0 && a.onGround) { audioSfx('jump'); a.vy = -CFG.JUMP_VELOCITY; a.onGround = false; this.jumpBuf = 0; }
+        if (this.jumpBuf > 0 && a.onGround) {
+            audioSfx('jump'); a.vy = -CFG.JUMP_VELOCITY; a.onGround = false; this.jumpBuf = 0;
+            this.jumpCrouchT = CFG.JUMP_CROUCH_TIME; this.jumpLandT = 0;
+        }
         if (!a.onGround) {
             a.vy += CFG.GRAVITY * dt;
             a.y += a.vy * dt;
-            if (a.y >= CFG.GROUND_Y) { a.y = CFG.GROUND_Y; a.vy = 0; a.onGround = true; }
+            if (a.y >= CFG.GROUND_Y) {
+                a.y = CFG.GROUND_Y; a.vy = 0; a.onGround = true;
+                this.jumpLandT = CFG.JUMP_LAND_TIME; this.jumpCrouchT = 0;
+            }
         }
+        if (this.jumpCrouchT > 0) this.jumpCrouchT = Math.max(0, this.jumpCrouchT - dt);
+        if (this.jumpLandT > 0) this.jumpLandT = Math.max(0, this.jumpLandT - dt);
 
         // --- atak ---
         this.attackCd = Math.max(0, this.attackCd - dt);
@@ -1467,12 +1485,23 @@ class PlayScene extends Phaser.Scene {
         this.arek.setPosition(sx, sy + Math.round(this.arekDY)).setFlipX(this.facing < 0);
         const idle = (this.mode === 'arrive' || this.mode === 'bossend' || ((this.mode === 'boss' || this.mode === 'ending') && !this.heroMoving));
         let pose = 'run';
-        if (this.attackT > 0) pose = 'attack'; else if (!a.onGround) pose = 'jump'; else if (idle) pose = 'idle';
+        let jumpTex = null;
+        if (this.attackT > 0) pose = 'attack';
+        else if (!a.onGround || this.jumpLandT > 0) {
+            if (this.jumpLandT > 0 && a.onGround) { pose = 'jump_land'; jumpTex = 'arek_jump_5'; }
+            else if (this.jumpCrouchT > 0) { pose = 'jump_crouch'; jumpTex = 'arek_jump_1'; }
+            else if (a.vy < -CFG.JUMP_APEX_VY) { pose = 'jump_rise'; jumpTex = 'arek_jump_2'; }
+            else if (a.vy > CFG.JUMP_APEX_VY) { pose = 'jump_fall'; jumpTex = 'arek_jump_4'; }
+            else { pose = 'jump_apex'; jumpTex = 'arek_jump_3'; }
+        } else if (idle) pose = 'idle';
         if (this.arekManual) pose = this.pose;          // finał: pozą Arka steruje sekwencja zakończenia
         if (pose !== this.pose) {
             this.pose = pose;
             if (pose === 'run') this.arek.play('run');
-            else { this.arek.anims.stop(); this.arek.setTexture({ jump: 'arek_jump', attack: 'arek_attack', idle: 'arek_run_2' }[pose]); }   // idle (arena): poza "mijania", stopy na ziemi
+            else {
+                this.arek.anims.stop();
+                this.arek.setTexture(jumpTex || { attack: 'arek_attack', idle: 'arek_run_2' }[pose] || 'arek_run_2');   // idle (arena): zwarta poza biegu, stopy na ziemi
+            }
         }
         if (pose === 'run') {
             this.arek.anims.timeScale = Phaser.Math.Clamp(animSpeed, CFG.RUN_TIMESCALE_MIN, CFG.RUN_TIMESCALE_MAX);   // kadencja ~ prędkość względem podłoża
@@ -2041,7 +2070,7 @@ class PlayScene extends Phaser.Scene {
         const a = this.a, arek = this.arek;
         this.arekManual = true; this.pose = 'manual';
         this.facing = 1;
-        arek.anims.stop(); arek.setTexture('arek_jump').setFlipX(false);
+        arek.anims.stop(); arek.setTexture('arek_jump_2').setFlipX(false);
         this.tweens.add({ targets: this, arekDY: -10, duration: 600, ease: 'Sine.out' });
         this.endDim = this.add.rectangle(0, 0, W, H, 0x0a0620, 1).setOrigin(0).setScrollFactor(0).setDepth(9.4).setAlpha(0);
         this.tweens.add({ targets: this.endDim, alpha: CFG.ENDING_DARKEN, duration: 800 });
@@ -2064,7 +2093,7 @@ class PlayScene extends Phaser.Scene {
         let k = 0;
         const flick = this.time.addEvent({ delay: 60, repeat: 11, callback: () => {
             k++;
-            arek.setTexture(k % 2 ? 'arek_casual_stand' : 'arek_jump').setTintFill(0xffffff);
+            arek.setTexture(k % 2 ? 'arek_casual_stand' : 'arek_jump_2').setTintFill(0xffffff);
             if (Math.random() < 0.8) this.sparkle(a.x + Phaser.Math.Between(-14, 14), a.y - 30 + Phaser.Math.Between(-26, 26), 2, [0xffffff, 0xffd040, 0xfff0a0]);
         } });
         this.time.delayedCall(60 * 13, () => {                          // zbroja spada
@@ -2134,7 +2163,7 @@ class PlayScene extends Phaser.Scene {
         this.state = 'over';
         audioPlay('gameover');
         this.arek.anims.stop();
-        this.arek.setTexture('arek_jump').setTint(0xff6060).setAlpha(1);
+        this.arek.setTexture('arek_jump_4').setTint(0xff6060).setAlpha(1);
         this.slash.setVisible(false);
         this.tweens.add({ targets: this.arek, y: this.arek.y - 24, angle: 90, alpha: 0.7, duration: 500, ease: 'Quad.out' });
         this.showEnd('GAME OVER', '#ff4040', '#4a0808', 'TRY AGAIN');
