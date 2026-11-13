@@ -20,7 +20,7 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – reklama/gra 16-bit
 ## Postacie
 | Postać | Rola | Opis |
 |--------|------|------|
-| **Arek** | bohater | okulary, broda, złota zbroja z mieczem |
+| **Arek** | bohater | okulary, broda, złota zbroja z mieczem; wersja casual: czerwony t-shirt, beżowe spodenki cargo, białe trampki |
 | **Ksiądz Kamil** | główny antagonista | rude krótkie włosy (buzz cut), niebieskie oczy, złośliwy szeroki uśmiech, czarna sutanna z koloratką, czarny plecak |
 | **Fibi** | pies | mały czarno-brązowy kundelek, ciemne podpalane futro, brązowe łapy i policzki, siwa pierś, oklapnięte uszy |
 
@@ -132,6 +132,10 @@ assets/
 │   ├── ksiadz_kamil_stand.png        # 55×160, stoi (+ _x4 podgląd)
 │   ├── ksiadz_kamil_walk_1.png       # 79×160, chód klatka 1 (+ _x4 podgląd)
 │   ├── ksiadz_kamil_walk_2.png       # 82×160, chód klatka 2 (+ _x4 podgląd)
+│   ├── arek_casual_stand.png         # 45×160, Arek bez zbroi, stoi (+ _x4 podgląd)
+│   ├── arek_casual_run_1.png         # 115×160, bieg klatka 1 (+ _x4 podgląd)
+│   ├── arek_casual_run_2.png         # 98×160, bieg klatka 2 (+ _x4 podgląd)
+│   ├── arek_casual_run_3.png         # 109×160, bieg klatka 3 (+ _x4 podgląd)
 │   ├── fibi_stand.png                # 89×72, stoi (+ _x4 podgląd)
 │   ├── fibi_walk_1.png               # 117×72, chód klatka 1 (+ _x4 podgląd)
 │   └── fibi_walk_2.png               # 113×72, chód klatka 2 (+ _x4 podgląd)
