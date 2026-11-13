@@ -81,13 +81,22 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 
 ## Muzyka i dźwięk
 
-Cały dźwięk jest **generowany w przeglądarce** (Web Audio API, plik `audio.js`) – bez plików audio, działa z `file://` i z serwera. Muzyka jest autorska w klimacie chiptune z czasów SNES / Genesis (pulsujące fale prostokątne, bas, perkusja z szumu) – nie kopiuje żadnej istniejącej melodii.
+Cały dźwięk jest **generowany w przeglądarce** (Web Audio API, plik `audio.js`) – bez plików audio, działa z `file://` i z serwera. Muzyka jest autorska w klimacie 16-bitowych gier akcji (SNES / Genesis) – nie kopiuje żadnej istniejącej melodii.
 
-- Utwory: tytułowy, intro, poziom 1, poziom 2 (szybszy, wyższy), boss, finałowy boss, szał (po zniszczeniu auta), fanfara zwycięstwa, napisy końcowe, game over.
-- Proste efekty: skok, cięcie, trafienie, serduszko, krzyżyk, uderzenie w auto, wybuch, piorun.
+**Muzyka**
+- Aranżacja: **lead** z dwóch rozstrojonych „pulsów” z prawdziwą modulacją wypełnienia (PWM) i vibrato, **echo** (delay z sprzężeniem) na leadzie, harmonia w tercję, **arpeggia** akordów, **bas** z skokami oktawowymi, **stabsy** akordowe, **perkusja** (stopa, werbel, hi-haty, toms, crash – szum + obwiednie wysokości) z fillami.
+- **Budowa utworów:** intro / A / A2 / B / mostek / B2 (zamiast krótkich pętli), 38–48 taktów, pętla wraca po intro. Kompresor „klejący” + limiter na wyjściu (bez przesterowań).
+- Utwory: tytułowy (a-moll, heroiczny), intro, poziom 1 (e-moll, ~152 BPM), poziom 2 (szybszy, wyżej), boss (d-moll, 176 BPM), finałowy boss (186 BPM, harmonia + stabsy), **szał** (210 BPM, podwojenie oktawą, podwójna stopa), fanfara zwycięstwa, napisy końcowe, game over.
+
+**Efekty**
+- **Transformacja** (intro i zdjęcie zbroi w zakończeniu): narastające ładowanie (świst + piła + pisk, kończy się dokładnie w chwili uderzenia) → **grzmot** (trzask + dudniący pogłos, muzyka na chwilę przycichnie) → **migoczące arpeggio iskier** → **power chord** przy odsłonięciu. Zgrane z animacją (czasy z `CFG`).
+- **Auto Kamila:** silnik (piła + sub + przester, dudnienie LFO, szum) z wysokością i głośnością zależną od prędkości auta, **panoramą stereo** i efektem Dopplera przy przejeździe w intro; wjazd na arenę (obie walki), odjazd z Fibim; **pisk hamulców** przy zatrzymaniu i **trzaśnięcie drzwiami** (wysiadanie Kamila, wsiadanie, Fibi w aucie).
+- Pozostałe: skok, cięcie, trafienie, serduszko, krzyżyk, uderzenie w auto, wybuch.
+
+**Sterowanie dźwiękiem**
 - Dźwięk startuje po **pierwszym kliknięciu / dotknięciu / klawiszu** (wymóg przeglądarek).
-- **Przycisk wyciszenia** (ikona głośnika u góry – na ekranie tytułowym, w intro i w grze; klik/tap) oraz klawisz **M**. Wybór jest zapamiętywany w `localStorage` (`fibi_muted`). Dźwięk cichnie też, gdy karta jest w tle.
-- Edycja: melodie to tablice nut w `TRACKS` w `audio.js` (tempo, tonacja, 16 kroków na takt), efekty w `SFX`.
+- **Przycisk wyciszenia** (ikona głośnika u góry – na ekranie tytułowym, w intro i w grze; klik/tap) oraz klawisz **M**. Wybór jest zapamiętywany w `localStorage` (`fibi_muted`); wyciszenie obejmuje muzykę i efekty (w tym silnik). Dźwięk cichnie też, gdy karta jest w tle.
+- Edycja: melodie, progresje, wzorce basu/perkusji i budowa to dane w `SONGS` w `audio.js`; efekty w `playSfx`. Podgląd offline: `FibiAudio.render('boss', 25)` (albo `sfx_transform`, `sfx_car_arrive`, `sfx_car_passby`) zwraca bufor stereo do zapisu jako WAV.
 
 ## Sterowanie
 
@@ -107,7 +116,7 @@ W arenie bossa → / ← poruszają Arka swobodnie po ekranie (ekran się nie pr
 - **Phaser 3.80.1** (CDN jsDelivr), czysty **JavaScript** (jeden plik `game.js`), **HTML5** (`index.html`)
 - Rozdzielczość bazowa **568×320**, `Phaser.Scale.FIT`, `pixelArt: true`, `roundPixels`
 - Sceny: `Boot → Title → Intro → Play` (boss, finał i zakończenie to tryby `PlayScene`; game over i KONIEC GRY to nakładki)
-- **Dźwięk:** `audio.js` – własny silnik Web Audio (oscylatory pulse/trójkąt, szum, sekwencer z kolejką czasu), muzyka i SFX proceduralne, możliwość renderu offline do WAV
+- **Dźwięk:** `audio.js` – własny silnik Web Audio (PWM, delay, filtry, szum, sekwencer z kolejką czasu), muzyka i SFX proceduralne, możliwość renderu offline do WAV
 - Fizyka własna (bez Arcade): prosty skok z grawitacją i skrzynki kolizji
 - Wszystkie stałe gry (prędkości, punkty, odstępy, czasy intra i bossa, poziom 2) są na górze `game.js` w obiekcie **`CFG`**
 - Beczka, potworki, serce, krzyżyk, tło, przyciski dotykowe i czcionka 5×7 są **rysowane w kodzie** (tekstury canvas)

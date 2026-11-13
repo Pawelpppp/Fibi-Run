@@ -639,7 +639,31 @@ function drawLightning(g, tx, ty) {
 /* ---------- dźwięk: cienkie opakowania (gra działa też bez audio.js) ---------- */
 const audioPlay = (n) => { if (window.FibiAudio) FibiAudio.play(n); };
 const audioStop = (f) => { if (window.FibiAudio) FibiAudio.stop(f); };
-const audioSfx = (n) => { if (window.FibiAudio) FibiAudio.sfx(n); };
+const audioSfx = (n, o) => { if (window.FibiAudio) FibiAudio.sfx(n, o); };
+
+/** Silnik auta Kamila: prędkość, panorama i głośność liczone z ruchu sprite'a (kamera = camX).
+    opts: {ref px/s dla pełnych obrotów, doppler: spadek wysokości przy mijaniu, idle: minimalne obroty}. */
+class CarSound {
+    constructor(opts) {
+        this.o = Object.assign({ ref: 260, doppler: false, idle: 0.1 }, opts);
+        this.h = (window.FibiAudio && FibiAudio.carEngine) ? FibiAudio.carEngine() : null;
+        this.lastX = null; this.sp = 0;
+    }
+    update(car, camX, dt) {
+        if (!this.h || !car || !car.active || dt <= 0) return;
+        if (this.lastX === null) this.lastX = car.x;
+        const vx = Math.abs(car.x - this.lastX) / dt; this.lastX = car.x;
+        this.sp += (vx / this.o.ref - this.sp) * Math.min(1, dt * 10);
+        const rel = (car.x - camX - W / 2) / (W / 2), pan = Math.max(-1, Math.min(1, rel * 0.9));
+        const off = Math.max(0, Math.abs(rel) - 1);                       // poza ekranem ciszej
+        this.h.set({
+            speed: Math.max(this.o.idle, Math.min(1.3, this.sp)), pan,
+            vol: Math.max(0.3, 1 - 0.5 * Math.min(1, Math.abs(rel))) * (1 - Math.min(0.6, off)),
+            pitch: this.o.doppler ? 1 - 0.09 * Math.tanh(2.4 * rel) : 1,
+        });
+    }
+    stop(fade) { if (this.h) this.h.stop(fade); this.h = null; }
+}
 
 /** Przycisk wyciszenia (piksel-art głośnik): klik/tap, klawisz M obsługuje audio.js. */
 function addMuteButton(scene, x, y, depth) {
@@ -767,6 +791,8 @@ class IntroScene extends Phaser.Scene {
     create() {
         this.t = 0;
         this.camX = 0;
+        this.carSnd = null;
+        this.events.once('shutdown', () => { if (this.carSnd) { this.carSnd.stop(0.05); this.carSnd = null; } });
         this.scroll = -CFG.INTRO_WALK_SPEED;   // tło jedzie w prawo = Arek idzie w lewo
         this.phase = 'walk';
         this.phaseT = 0;
@@ -827,9 +853,14 @@ class IntroScene extends Phaser.Scene {
 
         // --- samochód ---
         if (this.t >= CFG.INTRO_CAR_START && car.x < W + this.carHalf + 20) {
+            if (!this.carSnd) this.carSnd = new CarSound({ ref: 200, doppler: true });
             car.setVisible(true);
             car.x += CFG.INTRO_CAR_SPEED * dt;
             car.y = CFG.INTRO_CAR_BOTTOM - (Math.floor(this.t * 16) % 2);   // drgania silnika
+        }
+        if (this.carSnd) {
+            if (car.x >= W + this.carHalf + 20) { this.carSnd.stop(0.4); this.carSnd = null; }
+            else this.carSnd.update(car, 0, dt);
         }
         const carFront = car.x + this.carHalf - 8;
 
@@ -859,6 +890,7 @@ class IntroScene extends Phaser.Scene {
             if (P > CFG.INTRO_TURN_TIME * 0.5) arek.setFlipX(false);   // odwraca się w prawo, za psem
             if (P >= CFG.INTRO_TURN_TIME) {
                 this.setPhase('sword');
+                audioSfx('charge', CFG.INTRO_SWORD_TIME + CFG.INTRO_HOLD_TIME);   // ładowanie kończy się dokładnie w momencie uderzenia
                 this.leashState = 'gone';
                 this.sword.setVisible(true);
                 this.tweens.add({ targets: this.dim, alpha: 0.5, duration: (CFG.INTRO_SWORD_TIME + CFG.INTRO_HOLD_TIME) * 1000 });
@@ -955,7 +987,7 @@ class IntroScene extends Phaser.Scene {
         this.tweens.add({ targets: this.flashRect, alpha: 0, duration: 200 });
         this.boltT = 0;
         this.drawBolt();
-        audioSfx('lightning');
+        audioSfx('thunder');
         this.sparkle(this.swordTip.x, this.swordTip.y, 14, [0xffffff, 0xbfe0ff, 0x6a8cff]);
     }
     drawBolt() { drawLightning(this.boltG, this.swordTip.x, this.swordTip.y); }
@@ -973,6 +1005,7 @@ class IntroScene extends Phaser.Scene {
     }
 
     transformStart() {
+        audioSfx('sparkle', CFG.INTRO_TRANSFORM_TIME * 0.5);                  // iskry do momentu odsłonięcia zbroi
         this.arek.setTintFill(0xffffff);
         this.revealed = false;
         this.tweens.add({ targets: this.dim, alpha: 0, duration: 500 });
@@ -987,6 +1020,7 @@ class IntroScene extends Phaser.Scene {
             arek.setTexture(alt ? 'arek_jump' : 'arek_casual_stand').setTintFill(0xffffff);
         } else if (!this.revealed) {
             this.revealed = true;                                   // odsłonięcie: złota zbroja
+            audioSfx('reveal');
             arek.setTexture('arek_jump').clearTint().setScale(1.18);
             this.sword.setVisible(false);
             this.armG.clear();
@@ -1084,6 +1118,9 @@ class PlayScene extends Phaser.Scene {
         this.facing = 1;
         this.barrels = []; this.monsters = []; this.hearts = []; this.crosses = [];
         this.boss = null; this.fibi = null; this.car = null; this.carObj = null; this.carBar = null; this.carInfo = null;
+        if (this.carSnd) this.carSnd.stop(0.05);
+        this.carSnd = null;
+        this.events.once('shutdown', () => { if (this.carSnd) { this.carSnd.stop(0.05); this.carSnd = null; } });
         this.final = false; this.bossReached = false; this.arekManual = false; this.arekDY = 0; this.endVx = 0; this.endTarget = null; this.endDog = null; this.endDone = false;
         this.bossHudOn = false; this.heroMoving = false;
         this.spawning = true;
@@ -1330,6 +1367,7 @@ class PlayScene extends Phaser.Scene {
         this.jumpQ = false; this.attackQ = false; this.enterQ = false; this.escQ = false;
 
         const rPress = this.rQ; this.rQ = false;
+        if (this.carSnd) this.carSnd.update(this.car, this.camX, dt);
         if (this.state === 'final') {
             if (this.endReady && (enterPress || escPress)) this.toMenu();
             else if (this.endReady && (rPress || jumpPress)) this.scene.restart();
@@ -1548,10 +1586,13 @@ class PlayScene extends Phaser.Scene {
         const stopX = this.camX + W * CFG.ARENA_CAR_STOP;
         this.car = this.add.sprite(this.camX - this.carHalf - 30, CFG.INTRO_CAR_BOTTOM, info.keys[0]).setOrigin(0.5, 1).setDepth(4.8);
         this.car.play('car_drive_s');
+        this.carSnd = new CarSound({ ref: 300 });
+        const driveMs = CFG.ARENA_CAR_TIME * 1000;
+        this.time.delayedCall(500 + driveMs - 650, () => { audioSfx('brake', 0.8); });          // hamowanie przed zatrzymaniem
         this.time.delayedCall(500, () => {
             this.tweens.add({
-                targets: this.car, x: stopX, duration: CFG.ARENA_CAR_TIME * 1000, ease: 'Quad.out',
-                onComplete: () => { this.car.anims.stop(); this.kamilGetsOut(); },
+                targets: this.car, x: stopX, duration: driveMs, ease: 'Quad.out',
+                onComplete: () => { this.car.anims.stop(); if (this.carSnd) { this.carSnd.stop(0.5); this.carSnd = null; } this.kamilGetsOut(); },
             });
         });
     }
@@ -1565,6 +1606,7 @@ class PlayScene extends Phaser.Scene {
             rage: false, fury: false, pattern: 'single' };
         if (fin) this.carObj = { hp: CFG.CAR_HP, max: CFG.CAR_HP, cd: 0, alive: true, fx: 0 };
         this.time.delayedCall(450, () => {
+            audioSfx('slam');                                           // drzwi
             car.setTexture(this.carInfo.emptyKeys[0]);                  // kierowca wysiadł - puste siedzenie (bez "podwójnego Kamila")
             this.tweens.add({ targets: car, y: car.y - 2, duration: 80, yoyo: true, repeat: 1 });   // drzwi
             this.tweens.add({ targets: s, alpha: 1, y: CFG.GROUND_Y - 16, duration: 180, yoyo: true,
@@ -1909,6 +1951,7 @@ class PlayScene extends Phaser.Scene {
             targets: b.s, y: CFG.GROUND_Y - 36, alpha: 0, duration: 320, ease: 'Quad.out',
             onComplete: () => {
                 b.s.destroy();
+                audioSfx('slam');
                 car.setTexture(this.carInfo.keys[0]);                    // znowu Kamil za kierownicą
                 this.tweens.add({ targets: car, y: car.y - 2, duration: 70, yoyo: true, repeat: 3 });   // auto buja
                 this.cameras.main.shake(150, 0.004);
@@ -1920,6 +1963,8 @@ class PlayScene extends Phaser.Scene {
     carGrabsFibi() {
         const car = this.car, fibi = this.fibi;
         car.play('car_drive_s');
+        this.carSnd = new CarSound({ ref: 300 });
+        this.time.delayedCall(450, () => audioSfx('brake', 0.55));            // hamuje przy Fibi
         this.tweens.add({
             targets: car, x: fibi.x - 52, duration: 1000, ease: 'Quad.inOut',
             onComplete: () => {
@@ -1929,13 +1974,14 @@ class PlayScene extends Phaser.Scene {
                     targets: fibi, x: car.x + 8, y: CFG.GROUND_Y - 24, alpha: 0, scale: 0.7, duration: 420, ease: 'Quad.out',
                     onComplete: () => {
                         fibi.destroy();
+                        audioSfx('slam');                                        // Fibi w aucie, drzwi
                         car.play('car_drive_s');
                         const out = this.camX + W + this.carHalf + 60;
                         let started = false;
                         this.tweens.add({
                             targets: car, x: out, duration: 2000, ease: 'Quad.in',
                             onUpdate: () => { if (!started && car.x > this.camX + W - this.carHalf) { started = true; this.startLevel2(); } },
-                            onComplete: () => { car.destroy(); this.car = null; },
+                            onComplete: () => { car.destroy(); this.car = null; if (this.carSnd) { this.carSnd.stop(0.25); this.carSnd = null; } },
                         });
                     },
                 });
@@ -2000,6 +2046,7 @@ class PlayScene extends Phaser.Scene {
         this.endDim = this.add.rectangle(0, 0, W, H, 0x0a0620, 1).setOrigin(0).setScrollFactor(0).setDepth(9.4).setAlpha(0);
         this.tweens.add({ targets: this.endDim, alpha: CFG.ENDING_DARKEN, duration: 800 });
         this.boltG = this.add.graphics().setDepth(18);
+        audioSfx('charge', 1.5);                                         // ładowanie kończy się piorunem
         this.time.delayedCall(1500, () => this.endingStrike());
     }
     endingStrike() {
@@ -2007,7 +2054,8 @@ class PlayScene extends Phaser.Scene {
         const tip = { x: a.x + 10, y: a.y - 66 + this.arekDY };
         this.cameras.main.flash(300, 255, 255, 255);
         this.cameras.main.shake(500, 0.012);
-        audioSfx('lightning');
+        audioSfx('thunder');
+        audioSfx('sparkle', 0.78);                                      // iskry przez cały czas migotania
         let n = 0;
         this.time.addEvent({ delay: 60, repeat: 9, callback: () => { drawLightning(this.boltG, tip.x, tip.y); n++; if (n >= 10) this.boltG.clear(); } });
         this.sparkle(tip.x, tip.y, 16, [0xffffff, 0xbfe0ff, 0x6a8cff]);
@@ -2021,6 +2069,7 @@ class PlayScene extends Phaser.Scene {
         } });
         this.time.delayedCall(60 * 13, () => {                          // zbroja spada
             flick.remove();
+            audioSfx('reveal');
             arek.setTexture('arek_casual_stand').clearTint().setScale(1.15);
             this.tweens.add({ targets: arek, scale: 1, duration: 260, ease: 'Back.out' });
             this.cameras.main.flash(240, 255, 240, 180);
