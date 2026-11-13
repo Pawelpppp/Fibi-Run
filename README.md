@@ -103,13 +103,13 @@ assets/
 │   ├── jump.png
 │   ├── attack.png
 │   ├── front_full.png
-│   ├── ksiadz_kamil_stand.png        # 28×80, stoi (+ _x4 podgląd)
-│   ├── ksiadz_kamil_walk_1.png       # 40×80, chód klatka 1 (+ _x4 podgląd)
-│   └── ksiadz_kamil_walk_2.png       # 41×80, chód klatka 2 (+ _x4 podgląd)
+│   ├── ksiadz_kamil_stand.png        # 55×160, stoi (+ _x4 podgląd)
+│   ├── ksiadz_kamil_walk_1.png       # 79×160, chód klatka 1 (+ _x4 podgląd)
+│   └── ksiadz_kamil_walk_2.png       # 82×160, chód klatka 2 (+ _x4 podgląd)
 └── portraits/
     ├── dialogue_portrait.png
     ├── face_portrait.png
-    └── ksiadz_kamil_portrait_front.png  # 96×96, portret do dialogów (+ _x4 podgląd)
+    └── ksiadz_kamil_portrait_front.png  # 192×192, portret do dialogów (+ _x4 podgląd)
 ```
 
 Pliki `*_x4.png` to te same grafiki powiększone 4× (nearest neighbor) do podglądu.
