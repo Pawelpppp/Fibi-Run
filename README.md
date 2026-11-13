@@ -38,11 +38,13 @@ Pierwszy ekran po uruchomieniu gry:
 
 Krótka scenka po kliknięciu **START NEW GAME**, przed poziomem 1:
 1. Arek idzie spokojnie **w lewo** z psem na smyczy po szutrowej drodze.
-2. Obok nich przejeżdża **ksiądz w aucie**.
+2. Obok nich przejeżdża **ksiądz Kamil w samochodzie** (widać go przez szybę auta).
 3. Pies się płoszy, wyrywa i **ucieka w prawo**.
 4. Arek dobywa **miecza** i zaczyna **biec za psem w prawo** – startuje poziom 1.
 
-Grafiki do zrobienia: pies (mały, czarno-brązowy), ksiądz, auto.
+Grafiki:
+- Ksiądz Kamil – gotowe: `assets/portraits/ksiadz_kamil_portrait_front.png` (portret do dialogów), `assets/sprites/ksiadz_kamil_stand.png`, `ksiadz_kamil_walk_1.png`, `ksiadz_kamil_walk_2.png` (wersje `_x4` – 4x większe).
+- Do zrobienia: samochód z księdzem Kamilem w środku, pies (mały, czarno-brązowy).
 
 ---
 
