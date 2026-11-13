@@ -29,8 +29,8 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 | Postać | Rola | Opis |
 |--------|------|------|
 | **Arek** | bohater | okulary, broda; w grze złota zbroja z peleryną i mieczem, w intro wersja casual |
-| **Ksiądz Kamil** | antagonista / boss | rude krótkie włosy, czarna sutanna, jeździ czerwonym hatchbackiem, rzuca krzyżykami |
-| **Rafał dres** | dresiarz | blady, szczupły, jasnobrązowy jeżyk i charakterystyczny dzióbek; błyszczący czarny dres z białymi paskami, białe buty, złoty łańcuszek (grafiki gotowe, jeszcze niepodpięte w grze) |
+| **Ksiądz Kamil** | antagonista / boss | rude krótkie włosy, czarna sutanna, jeździ czerwonym hatchbackiem, rzuca krzyżykami – boss w **misjach 4 i 6** |
+| **Rafał dres** | dresiarz / boss misji 2 | blady, szczupły, jasnobrązowy jeżyk, charakterystyczny dzióbek, **blizna na policzku** i **duży, gruby złoty łańcuch**; błyszczący czarny dres z białymi paskami, białe buty. Umiejętności specjalne: **walka na pięści** i **rzut kastetem** (grafiki gotowe, jeszcze niepodpięte w grze) |
 | **Fibi** | pies | mały czarno-brązowy kundelek (portret na ekranie tytułowym, w intro i w arenie) |
 
 ## Przebieg gry
@@ -79,6 +79,15 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
    5. Pojawia się napis **WYGRAŁEŚ!** (z fanfarą).
    6. Arek odchodzi **w lewo** za ekran (dobiega do niego Fibi).
    7. Ekran **KONIEC GRY** z przyciskami MENU (Enter) i PLAY AGAIN (R).
+
+## Misje / bossowie (plan)
+Docelowy podział na misje (jeszcze niezaimplementowany w kodzie; obecnie w grze są poziom 1–2 i walki z Kamilem):
+
+| Misja | Boss | Uwagi |
+|-------|------|-------|
+| 2 | **Rafał dres** | walka na pięści (ciosy: prosty, sierpowy) i **rzut kastetem** (pocisk `rafal_dres_kastet`, z obrotem); blizna na policzku, duży złoty łańcuch |
+| 4 | **ksiądz Kamil** | boss w misji 4 |
+| 6 | **ksiądz Kamil** | boss w misji 6 |
 
 ## Muzyka i dźwięk
 
@@ -163,7 +172,11 @@ assets/
 │   ├── ksiadz_kamil_bubble_haha.png      # dymek „HA HA!” (96×50, ogonek w lewo-dół; rysowany pikselowo)
 │   │                   #   Rafał dres (jeszcze niepodpięty w grze):
 │   ├── rafal_dres_stand.png              # stoi, w prawo (49×160)
-│   └── rafal_dres_walk_1..4.png          # chód, 4 klatki (74/58/65/67×160, jedna skala ze stand)
+│   ├── rafal_dres_walk_1..4.png          # chód, 4 klatki (74/55/67/61×160, jedna skala ze stand)
+│   ├── rafal_dres_punch_1..3.png         # ciosy: zamach, prosty, sierpowy (75–89×155, ta sama skala co stand/walk)
+│   ├── rafal_dres_throw_1..2.png         # rzut kastetem: zamach, wypuszczenie (78–89×153)
+│   ├── rafal_dres_kastet.png             # pocisk – kastet (30×17)
+│   └── rafal_dres_kastet_spin_1..2.png   # obrót kastetu w locie (25×24 pod kątem, 4×24 bokiem)
 ├── portraits/          # portrety do dialogów (Fibi, Kamil, ...)
 │   └── rafal_dres_portrait_front.png  # Rafał dres (192×192)
 └── game/               # przetworzone sprite'y do gry + assets.js (data-URI)
