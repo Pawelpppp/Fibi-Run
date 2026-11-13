@@ -36,6 +36,13 @@ ARMOR_RUN6 = [f'arek_run6_{i}' for i in range(1, 7)]
 ARMOR_JUMP = [f'arek_jump_{i}' for i in range(1, 6)]
 KAMIL_H_GAME = 64      # wysokość księdza Kamila w grze (px) - jak Arek
 KAMIL_FRAMES = ['ksiadz_kamil_walk_1', 'ksiadz_kamil_walk_2', 'ksiadz_kamil_stand']
+RAFAL_H_GAME = 64      # wysokość Rafała dresa w grze (px) - jak Arek / Kamil (stand = 160 px w oryginale)
+RAFAL_FRAMES = (['rafal_dres_stand'] + [f'rafal_dres_walk_{i}' for i in range(1, 5)]
+                + [f'rafal_dres_punch_{i}' for i in range(1, 4)] + [f'rafal_dres_throw_{i}' for i in range(1, 3)])
+RAFAL_KASTET = ['rafal_dres_kastet', 'rafal_dres_kastet_spin_1', 'rafal_dres_kastet_spin_2']
+RAFAL_KASTET_SCALE = 0.85   # kastet w grze: 30 px -> ~26 px
+RAFAL_PORTRAIT = os.path.join(ROOT, 'assets', 'portraits', 'rafal_dres_portrait_front.png')
+RAFAL_PORTRAIT_GAME = 64    # portret w ramce dialogowej (px)
 DOG_H_GAME = 28        # wysokość Fibi w grze (px) - wyraźnie mniejsza od Arka (64 px)
 DOG_FRAMES = ['fibi_walk_1', 'fibi_walk_2', 'fibi_stand']
 FACE_SRC = os.path.join(ROOT, 'assets', 'portraits', 'fibi_portrait_front.png')   # portret Fibi na ekranie powitalnym
@@ -242,6 +249,7 @@ def main():
     process_title_face()
     process_casual()
     process_kamil()
+    process_rafal()
     copy_car()
     process_dog()
     write_bundle()
@@ -301,6 +309,52 @@ def process_kamil():
     for n, im in zip(KAMIL_FRAMES, quantize(items, 40)):
         im.save(os.path.join(OUT, n.replace('ksiadz_kamil', 'kamil') + '.png'))
     print('kamil frames', walk_w, 'x', KAMIL_H_GAME)
+
+
+def process_rafal():
+    """Rafał dres (boss misji 2) -> assets/game/rafal_*.png.
+    Sprite'y są RGBA (prawdziwa alfa, zwrócone w prawo; w grze flipX w lewo). Jedna skala dla
+    wszystkich klatek (stand 160 px -> RAFAL_H_GAME), stopy na dole ramki, kotwica poziomna w
+    głowie (jak u Arka) - sprite z originem (0.5, 1) stoi stopami na ziemi, a głowa jest w punkcie x
+    bossa także podczas wyprowadzania ciosu / rzutu. Kastet (pocisk) i klatki obrotu w jednej
+    ramce wyśrodkowane, plus lustrzana klatka 45 st. -> pełny cykl obrotu przód-45-bok-45.
+    Portret do okienka dialogowego: przycięty i zmniejszony do RAFAL_PORTRAIT_GAME."""
+    cut = {n: load_sprite(n) for n in RAFAL_FRAMES}
+    scale = RAFAL_H_GAME / float(cut['rafal_dres_stand'].height)
+    print('rafal scale %.4f' % scale)
+    items = align_set(cut, RAFAL_FRAMES, scale)
+    for n, im in zip(RAFAL_FRAMES, quantize(items, 48)):
+        im.save(os.path.join(OUT, n.replace('rafal_dres', 'rafal') + '.png'))
+    print('rafal frame', items[0][0].size)
+
+    k = {n: load_sprite(n) for n in RAFAL_KASTET}
+    parts = []
+    for n in RAFAL_KASTET + ['rafal_dres_kastet_spin_1m']:
+        c = k['rafal_dres_kastet_spin_1'].transpose(Image.FLIP_LEFT_RIGHT) if n.endswith('_1m') else k[n]
+        sw, sh = max(1, round(c.width * RAFAL_KASTET_SCALE)), max(1, round(c.height * RAFAL_KASTET_SCALE))
+        parts.append((n, *to_game(c, (sw, sh)), sw, sh))
+    fw, fh = max(p[3] for p in parts), max(p[4] for p in parts)
+    fw += fw % 2; fh += fh % 2
+    kitems = []
+    for n, rgb, mask, sw, sh in parts:
+        frame = Image.new('RGB', (fw, fh)); fm = np.zeros((fh, fw), bool)
+        x0, y0 = (fw - sw) // 2, (fh - sh) // 2
+        frame.paste(rgb, (x0, y0)); fm[y0:y0 + sh, x0:x0 + sw] = mask
+        kitems.append((frame, fm))
+    for (n, *_), im in zip(parts, quantize(kitems, 24)):
+        im.save(os.path.join(OUT, n.replace('rafal_dres', 'rafal') + '.png'))
+    print('kastet frame', fw, 'x', fh)
+
+    im = Image.open(RAFAL_PORTRAIT).convert('RGBA')
+    im = im.crop(bbox(im))
+    sc = RAFAL_PORTRAIT_GAME / float(max(im.size))
+    sw, sh = max(1, round(im.width * sc)), max(1, round(im.height * sc))
+    rgb, mask = to_game(im, (sw, sh))
+    frame = Image.new('RGB', (RAFAL_PORTRAIT_GAME, RAFAL_PORTRAIT_GAME)); fm = np.zeros((RAFAL_PORTRAIT_GAME,) * 2, bool)
+    x0, y0 = (RAFAL_PORTRAIT_GAME - sw) // 2, RAFAL_PORTRAIT_GAME - sh
+    frame.paste(rgb, (x0, y0)); fm[y0:y0 + sh, x0:x0 + sw] = mask
+    quantize([(frame, fm)], 48)[0].save(os.path.join(OUT, 'rafal_portrait.png'))
+    print('rafal portrait', sw, 'x', sh)
 
 
 def process_dog():

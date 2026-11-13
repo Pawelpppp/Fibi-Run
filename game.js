@@ -1,7 +1,7 @@
 'use strict';
 /* =====================================================================
    Fibi Run - retro side-scroller (Phaser 3), 16-bit pixel art
-   Sceny: Boot -> Title -> Intro -> Play (poziom 1 -> przelot -> boss Kamil -> poziom 2; game over / wygrana to nakładki)
+   Sceny: Boot -> Title -> Intro -> Play (misje: 1 bieg -> 2 boss Rafał dres -> 3 bieg -> 4 boss Kamil -> 5 bieg (zastępcza) -> 6 finał z Kamilem; game over / wygrana to nakładki)
    Tablica wyników: Board (nick + lista), zapis w leaderboard.js
    ===================================================================== */
 
@@ -85,7 +85,7 @@ const CFG = {
     JUMP_APEX_VY: 70,           // |vy| poniżej tego = poza szczytu skoku
     SLASH_OFFSET_X: 12,         // przesunięcie błysku miecza od środka (głowy) Arka
 
-    // --- przejście po poziomie 1 i walka z bossem (ksiądz Kamil) ---
+    // --- przejście po biegu i walka z bossem w arenie (misja 4: ksiądz Kamil; wspólne ustawienia ruchu areny dla wszystkich bossów) ---
     ARENA_RUSH_DISTANCE: 1100,  // o ile px ekran gwałtownie przesuwa się w prawo (bohater ląduje przy lewej krawędzi)
     ARENA_RUSH_TIME: 2.2,       // s - jak długo trwa ten przelot
     ARENA_HERO_X: 34,           // gdzie na ekranie stoi Arek po przelocie (skrajnie lewa strona)
@@ -106,7 +106,7 @@ const CFG = {
     CROSS_LOW_Y: 12,            // wysokość środka niskiego krzyżyka nad ziemią
     CROSS_HIGH_Y: 68,           // wysokość środka wysokiego krzyżyka nad ziemią
 
-    // --- finałowy boss (po poziomie 2) ---
+    // --- finałowy boss (misja 6) ---
     FINAL_BOSS_HP: 6,           // życia Kamila w finale
     FINAL_BOSS_SPEED: 78,       // px/s - chód
     FINAL_SPELL_MIN: 1.4,       // s - odstęp między czarami
@@ -134,19 +134,56 @@ const CFG = {
     FURY_TIRED: 0.9,            // s - po szarży zmęczony (można go bić)
     BOSS_RETRY_LIVES: 3,        // życia po "TRY AGAIN" w arenie (checkpoint)
 
+    // --- boss misji 2: Rafał dres (walka na pięści + rzut kastetem) ---
+    RAFAL: {
+        HP: 4,                    // trafienia mieczem / skoki na głowę
+        SPEED: 66,                // px/s - chód w stronę Arka
+        RAGE_HP_FRAC: 0.5,        // poniżej tej części HP robi się bardziej agresywny
+        RAGE_SPEED: 1.4,          // mnożnik prędkości w szale
+        RAGE_CD: 0.7,             // mnożnik przerw między atakami w szale (mniej = częściej)
+        RAGE_WINDUP: 0.8,         // mnożnik zapowiedzi ataku w szale (mniej = trudniej zareagować)
+        PUNCH_RANGE: 40,          // px - tyle od Arka zaczyna kombinację ciosów
+        PUNCH_REACH: 36,          // px przed Rafałem, które rani podczas ciosu
+        PUNCH_WINDUP: 0.42,       // s - zamach (zapowiedź, Rafał błyska)
+        JAB_TIME: 0.22,           // s - prosty
+        HOOK_WINDUP: 0.2,         // s - pauza przed sierpowym
+        HOOK_TIME: 0.28,          // s - sierpowy
+        PUNCH_RECOVER: 0.55,      // s - odpoczynek po kombinacji (można go wtedy bić)
+        KNOCKBACK: 230,           // px/s - odrzut Arka po trafieniu ciosem
+        THROW_MIN_DIST: 110,      // px - od tylu rzuca kastetem zamiast się zbliżać
+        THROW_CD_MIN: 2.0, THROW_CD_MAX: 3.2,   // s - przerwa między rzutami
+        THROW_WINDUP: 0.6,        // s - zamach przed rzutem (zapowiedź)
+        THROW_TIME: 0.3,          // s - klatka wypuszczenia
+        KASTET_SPEED: 200,        // px/s
+        KASTET_HIGH_CHANCE: 0.4,  // szansa na rzut wysoko (nie skacz) zamiast nisko (przeskocz)
+        KASTET_FPS: 14,           // tempo obrotu pocisku
+        RAGE_DOUBLE_CHANCE: 0.45, // w szale: szansa na dwa kastety pod rząd
+        DIALOG_LINE_TIME: 2.0,    // s - jak długo widać każdą kwestię przed walką
+    },
+
     // --- zakończenie ---
     ENDING_DARKEN: 0.55,        // zaciemnienie przed piorunem (0..1)
     ENDING_WALK_SPEED: 58,      // px/s - Arek odchodzi w lewo
     ENDING_FIBI: true,          // Fibi dobiega do Arka na koniec
 
-    // --- poziom 2 (po pokonaniu Kamila; licznik punktów zaczyna od 0) ---
+    // --- misja 3 (bieg po pokonaniu Rafała; licznik punktów zaczyna od 0) ---
     LEVEL2: {
-        GOAL_SCORE: 3000,        // tyle punktów trzeba zdobyć w poziomie 2
+        GOAL_SCORE: 3000,        // tyle punktów trzeba zdobyć w misji 3
         SCROLL_SPEED: 100, SPEED_NORMAL: 100, SPEED_SLOW: 75, SPEED_FAST: 165,
         GAP_MIN: 200, GAP_MAX: 340, GAP_RAMP: 0.25,
         MONSTER_CHANCE: 0.45,    // więcej potworów niż w poziomie 1
         MONSTER_MIX: { ghoul: 0.34, imp: 0.33, bat: 0.33 },
         DOUBLE_BARREL_CHANCE: 0.35, DOUBLE_MIN_SCORE: 0,
+        HEART_CHANCE: 0.16,
+    },
+    // --- misja 5 (bieg) - ZASTĘPCZA: na razie powtarza ustawienia poziomu 2, z krótszym celem ---
+    LEVEL3: {
+        GOAL_SCORE: 1500,
+        SCROLL_SPEED: 100, SPEED_NORMAL: 100, SPEED_SLOW: 75, SPEED_FAST: 165,
+        GAP_MIN: 200, GAP_MAX: 340, GAP_RAMP: 0.25,
+        MONSTER_CHANCE: 0.5,
+        MONSTER_MIX: { ghoul: 0.3, imp: 0.35, bat: 0.35 },
+        DOUBLE_BARREL_CHANCE: 0.4, DOUBLE_MIN_SCORE: 0,
         HEART_CHANCE: 0.16,
     },
     POINTS_IMP: 70,             // szybki diablik
@@ -721,6 +758,9 @@ class BootScene extends Phaser.Scene {
             'arek_casual_run_1', 'arek_casual_run_2', 'arek_casual_run_3', 'arek_casual_run_4', 'arek_casual_run_5', 'arek_casual_run_6',
             'arek_casual_jump_1', 'arek_casual_jump_2', 'arek_casual_jump_3', 'arek_casual_jump_4', 'arek_casual_jump_5',
             'arek_casual_stand', 'fibi_walk_1', 'fibi_walk_2', 'fibi_stand', 'kamil_stand', 'kamil_walk_1', 'kamil_walk_2',
+            'rafal_stand', 'rafal_walk_1', 'rafal_walk_2', 'rafal_walk_3', 'rafal_walk_4',
+            'rafal_punch_1', 'rafal_punch_2', 'rafal_punch_3', 'rafal_throw_1', 'rafal_throw_2',
+            'rafal_kastet', 'rafal_kastet_spin_1', 'rafal_kastet_spin_2', 'rafal_kastet_spin_1m', 'rafal_portrait',
         ];
         names.forEach(n => {
             // data-URI (assets/game/assets.js) działa też z file://; fallback: zwykłe pliki
@@ -748,6 +788,10 @@ class BootScene extends Phaser.Scene {
         this.anims.create({ key: 'dog_walk', frameRate: 4, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
         this.anims.create({ key: 'dog_run', frameRate: 12, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
         this.anims.create({ key: 'kamil_walk', frameRate: 6, repeat: -1, frames: [{ key: 'kamil_walk_1' }, { key: 'kamil_walk_2' }] });
+        this.anims.create({ key: 'rafal_walk', frameRate: 7, repeat: -1, frames: [1, 2, 3, 4].map(i => ({ key: 'rafal_walk_' + i })) });
+        // obrót kastetu: przód -> 45 st. -> bok -> 45 st. (lustro)
+        this.anims.create({ key: 'kastet_spin', frameRate: CFG.RAFAL.KASTET_FPS, repeat: -1,
+            frames: ['rafal_kastet', 'rafal_kastet_spin_1', 'rafal_kastet_spin_2', 'rafal_kastet_spin_1m'].map(key => ({ key })) });
         this.anims.create({ key: 'imp_run', frameRate: 9, repeat: -1, frames: [{ key: 'imp_1' }, { key: 'imp_2' }] });
         this.anims.create({ key: 'bat_fly', frameRate: 7, repeat: -1, frames: [{ key: 'bat_1' }, { key: 'bat_2' }] });
         this.anims.create({ key: 'monster_walk', frameRate: 4, repeat: -1, frames: [{ key: 'monster_1' }, { key: 'monster_2' }] });
@@ -782,8 +826,11 @@ class TitleScene extends Phaser.Scene {
             if (window.FibiLeaderboard) FibiLeaderboard.startRun();
             audioSfx('click');
             this.cameras.main.fadeOut(180, 12, 8, 24);
-            const next = /[?&]nointro\b/.test(location.search) ? 'Play' : 'Intro';
-            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(next));
+            // ?mission=N (1..6) - skok do misji (test / debug); bez parametru normalny start z intrem
+            const mm = /[?&]mission=([1-6])\b/.exec(location.search);
+            const dbg = mm ? (+mm[1] % 2 ? { level: (+mm[1] + 1) / 2 } : { level: +mm[1] / 2, arena: true }) : undefined;
+            const next = mm || /[?&]nointro\b/.test(location.search) ? 'Play' : 'Intro';
+            this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(next, dbg));
         };
         const openBoard = () => {
             if (this.starting || this.scene.isActive('Board')) return;
@@ -1119,10 +1166,10 @@ class PlayScene extends Phaser.Scene {
         this.carryScore = (data && data.totalScore) || 0;
     }
 
-    /** Parametry poziomu (poziom 1: stałe CFG, poziom 2: CFG.LEVEL2). */
+    /** Parametry poziomu-biegu (1: stałe CFG = misja 1, 2: CFG.LEVEL2 = misja 3, 3: CFG.LEVEL3 = misja 5). Boss po biegu N to misja 2N. */
     levelParams(level) {
-        if (level === 2) {
-            const L = CFG.LEVEL2;
+        if (level === 2 || level === 3) {
+            const L = level === 3 ? CFG.LEVEL3 : CFG.LEVEL2;
             return {
                 level, goal: L.GOAL_SCORE, scroll: L.SCROLL_SPEED, normal: L.SPEED_NORMAL, slow: L.SPEED_SLOW, fast: L.SPEED_FAST,
                 gapMin: L.GAP_MIN, gapMax: L.GAP_MAX, gapRamp: L.GAP_RAMP, monsterChance: L.MONSTER_CHANCE, mix: L.MONSTER_MIX,
@@ -1159,7 +1206,7 @@ class PlayScene extends Phaser.Scene {
         if (this.carSnd) this.carSnd.stop(0.05);
         this.carSnd = null;
         this.events.once('shutdown', () => { if (this.carSnd) { this.carSnd.stop(0.05); this.carSnd = null; } });
-        this.final = false; this.bossReached = false; this.arekManual = false; this.arekDY = 0; this.endVx = 0; this.endTarget = null; this.endDog = null; this.endDone = false; this.jumpCrouchT = 0; this.jumpLandT = 0;
+        this.final = false; this.bossKind = null; this.knockVx = 0; this.kastets = []; this.bossReached = false; this.arekManual = false; this.arekDY = 0; this.endVx = 0; this.endTarget = null; this.endDog = null; this.endDone = false; this.jumpCrouchT = 0; this.jumpLandT = 0;
         this.bossHudOn = false; this.heroMoving = false;
         this.spawning = true;
         this.nextObstacleX = CFG.FIRST_OBSTACLE_X;
@@ -1187,12 +1234,12 @@ class PlayScene extends Phaser.Scene {
         addMuteButton(this, 126, 4, 30);
         if (this.startArena) {                          // checkpoint walki z bossem
             this.lives = CFG.BOSS_RETRY_LIVES;
-            if (this.totalScore === 0) this.totalScore = (this.level === 2 ? CFG.GOAL_SCORE : 0) + this.L.goal;
+            if (this.totalScore === 0) { for (let l = 1; l <= this.level; l++) this.totalScore += this.levelParams(l).goal; }   // debug (?mission=N)
             this.refreshHud();
             this.time.delayedCall(60, () => { this.score = this.L.goal; this.refreshHud(); this.startRush(); });
         } else {
-            if (this.level === 1) this.showBanner('LEVEL 1', `REACH ${this.L.goal} POINTS`);
-            audioPlay(this.level === 2 ? 'level2' : 'level');
+            this.showBanner(`MISSION ${this.level * 2 - 1}`, `REACH ${this.L.goal} POINTS`);
+            audioPlay(this.level >= 2 ? 'level2' : 'level');
         }
         if (!IS_TOUCH) {
             this.hintTxt = pxText(this, W / 2, 292, '< > SPEED   SPACE JUMP   ALT SWORD   M MUTE', { scale: 2, color: '#ffffff', shadow: '#2a1608' })
@@ -1227,7 +1274,7 @@ class PlayScene extends Phaser.Scene {
         this.bar = this.add.rectangle(W - 8 - 119, 27, 1, 4, 0xffd040).setOrigin(0).setScrollFactor(0).setDepth(10);
         // życia bossa (3 krzyżyki, pokazywane w walce)
         this.bossHud = [pxText(this, W / 2, 6, 'KS. KAMIL', { scale: 1, color: '#ffe060', shadow: '#3a1008' }).setScrollFactor(0).setDepth(10)];
-        for (let i = 0; i < Math.max(CFG.BOSS_HP, CFG.FINAL_BOSS_HP); i++) {
+        for (let i = 0; i < Math.max(CFG.BOSS_HP, CFG.FINAL_BOSS_HP, CFG.RAFAL.HP); i++) {
             this.bossHud.push(this.add.image(W / 2 + (i - (CFG.BOSS_HP - 1) / 2) * 20, 16, 'cross').setOrigin(0.5, 0).setScrollFactor(0).setDepth(10));
         }
         this.bossHud.forEach(o => o.setVisible(false));
@@ -1244,7 +1291,10 @@ class PlayScene extends Phaser.Scene {
             this.timeTxt.setString(FibiLeaderboard.formatTime(ms));
         }
         this.bar.width = Math.max(1, Math.round(118 * Math.min(1, this.score / this.L.goal)));
-        if (this.boss) this.bossHud.slice(1).forEach((c, i) => c.setTexture(i < this.boss.hp ? 'cross' : 'cross_empty'));
+        if (this.boss) this.bossHud.slice(1).forEach((c, i) => {
+            if (this.boss.kind === 'rafal') c.setTexture('rafal_kastet').setTint(i < this.boss.hp ? 0xffffff : 0x3a3048);   // życie Rafała = kastet
+            else c.setTexture(i < this.boss.hp ? 'cross' : 'cross_empty').clearTint();
+        });
     }
 
     /* ---------- sterowanie ---------- */
@@ -1457,6 +1507,7 @@ class PlayScene extends Phaser.Scene {
         } else if (this.mode === 'boss') {
             const dir = (right ? 1 : 0) - (left ? 1 : 0);
             a.x += dir * CFG.BOSS_HERO_SPEED * dt;
+            a.x += this.knockVx * dt; this.knockVx *= Math.pow(0.003, dt);      // odrzut po ciosie Rafała
             if (dir) this.facing = dir;
             this.heroMoving = dir !== 0;
             animSpeed = Math.abs(dir) * CFG.BOSS_HERO_SPEED / CFG.SPEED_NORMAL;
@@ -1464,7 +1515,7 @@ class PlayScene extends Phaser.Scene {
             this.updateEnding(dt);
             animSpeed = Math.abs(this.endVx) / CFG.SPEED_NORMAL;
         } else if (this.mode === 'bossend') {
-            // po zwycięstwie: tło rusza dopiero gdy auto odjedzie (startLevel2 przełącza tryb)
+            // po zwycięstwie: tło rusza dopiero gdy auto odjedzie (startNextLevel przełącza tryb)
             this.heroMoving = false;
         } else {
             this.heroMoving = false;
@@ -1626,11 +1677,12 @@ class PlayScene extends Phaser.Scene {
 
     /* =================================================================
        KONIEC POZIOMU -> PRZELOT EKRANU -> ARENA -> WALKA Z KAMILEM
-       (po poziomie 1: pierwszy boss, po poziomie 2: finałowy boss z autem do zniszczenia)
+       (po biegu 1: Rafał dres (misja 2), po biegu 2: Kamil (misja 4), po biegu 3: finałowy Kamil z autem do zniszczenia (misja 6))
        ================================================================= */
     startRush() {
         this.mode = 'rush';
-        this.final = this.level === 2;
+        this.final = this.level === 3;                       // misja 6 = finałowy Kamil
+        this.bossKind = this.level === 1 ? 'rafal' : this.level === 2 ? 'kamil' : 'final';   // misja 2 / 4 / 6
         this.bossReached = true;                // od teraz "Try again" zaczyna od areny (checkpoint)
         this.invuln = 99;                       // w trakcie przejścia nic nie rani
         this.clearWorld(250);
@@ -1638,8 +1690,8 @@ class PlayScene extends Phaser.Scene {
         this.rushFrom = this.camX;
         this.rushSX0 = this.a.x - this.camX;
         this.arenaCamX = this.rushFrom + CFG.ARENA_RUSH_DISTANCE;
-        this.popup(this.a.x, this.a.y - 70, `LEVEL ${this.level} CLEAR!`, '#ffffff');
-        if (!this.final) {                      // Fibi czeka na prawym końcu areny (w finale Kamil już go ma)
+        this.popup(this.a.x, this.a.y - 70, `MISSION ${this.level * 2 - 1} CLEAR!`, '#ffffff');
+        if (this.bossKind === 'kamil') {                      // Fibi czeka na prawym końcu areny (w finale Kamil już go ma)
             this.fibi = this.add.sprite(this.arenaCamX + W - 36, CFG.GROUND_Y + 1, 'fibi_stand').setOrigin(0.5, 1).setDepth(5.5).setFlipX(true);
         }
         this.cameras.main.flash(160, 255, 255, 255);
@@ -1651,6 +1703,7 @@ class PlayScene extends Phaser.Scene {
         this.camX = this.arenaCamX;
         this.attackT = 0;
         this.invuln = 0.01;
+        if (this.bossKind === 'rafal') { this.rafalEnters(); return; }       // Rafał przychodzi pieszo, bez auta
         const info = this.carInfo = makeCar(this, CFG.INTRO_CAR_SCALE);
         this.carHalf = info.half;
         const stopX = this.camX + W * CFG.ARENA_CAR_STOP;
@@ -1672,7 +1725,7 @@ class PlayScene extends Phaser.Scene {
         const kx = car.x - 14;
         const hp = fin ? CFG.FINAL_BOSS_HP : CFG.BOSS_HP;
         const s = this.add.sprite(kx, CFG.GROUND_Y, 'kamil_stand').setOrigin(0.5, 1).setDepth(6).setFlipX(true).setAlpha(0);
-        this.boss = { s, x: kx, vx: 0, hp, maxHp: hp, invuln: 0, stun: 0, state: 'idle', stateT: 0.4, spellCd: 1.6, target: kx, face: -1, knock: 0,
+        this.boss = { kind: 'kamil', s, x: kx, vx: 0, hp, maxHp: hp, invuln: 0, stun: 0, state: 'idle', stateT: 0.4, spellCd: 1.6, target: kx, face: -1, knock: 0,
             rage: false, fury: false, pattern: 'single' };
         if (fin) this.carObj = { hp: CFG.CAR_HP, max: CFG.CAR_HP, cd: 0, alive: true, fx: 0 };
         this.time.delayedCall(450, () => {
@@ -1694,8 +1747,9 @@ class PlayScene extends Phaser.Scene {
     setBossHud(on) {
         this.bossHudOn = on;
         const n = this.boss ? this.boss.maxHp : CFG.BOSS_HP;
-        this.bossHud[0].setVisible(on);
-        this.bossHud.slice(1).forEach((c, i) => c.setVisible(on && i < n).setX(W / 2 + (i - (n - 1) / 2) * 17));
+        const gap = this.boss && this.boss.kind === 'rafal' ? 28 : 17;      // kastety (życie Rafała) są szersze niż krzyżyki
+        this.bossHud[0].setString(this.boss && this.boss.kind === 'rafal' ? 'RAFAŁ DRES' : 'KS. KAMIL').setVisible(on);
+        this.bossHud.slice(1).forEach((c, i) => c.setVisible(on && i < n).setX(W / 2 + (i - (n - 1) / 2) * gap));
         this.refreshHud();
     }
 
@@ -1707,6 +1761,7 @@ class PlayScene extends Phaser.Scene {
     updateBoss(dt, body, sword) {
         const b = this.boss, a = this.a, fin = this.final;
         if (!b || b.hp <= 0) return;
+        if (b.kind === 'rafal') { this.updateRafal(dt, body, sword); return; }
         b.invuln = Math.max(0, b.invuln - dt);
         b.stun = Math.max(0, b.stun - dt);
         const lostFrac = (b.maxHp - b.hp) / b.maxHp;
@@ -1793,6 +1848,205 @@ class PlayScene extends Phaser.Scene {
         this.updateHearts(body);
     }
 
+/* =================================================================
+       RAFAŁ DRES (boss misji 2): chodzi do Arka, kombinacja ciosów z bliska (prosty + sierpowy,
+       z zapowiedzią), rzut kastetem z daleka (obracający się pocisk, nisko = skocz, wysoko = nie skacz;
+       miecz go odbija). Poniżej połowy HP: szybciej, częściej, krótsze zapowiedzi, podwójny rzut.
+       Ustawienia: CFG.RAFAL.
+       ================================================================= */
+    rafalEnters() {
+        const R = CFG.RAFAL;
+        const x1 = this.camX + W * 0.72;
+        const s = this.add.sprite(this.camX + W + 34, CFG.GROUND_Y, 'rafal_walk_1').setOrigin(0.5, 1).setDepth(6).setFlipX(true);
+        s.play('rafal_walk');
+        const b = this.boss = { kind: 'rafal', s, x: s.x, vx: 0, hp: R.HP, maxHp: R.HP, invuln: 0, stun: 0, state: 'walk', stateT: 0, face: -1, knock: 0,
+            rage: false, punchCd: 0.5, throwCd: Phaser.Math.FloatBetween(R.THROW_CD_MIN, R.THROW_CD_MAX), hitDone: true, glow: null, cross: null };
+        this.tweens.add({
+            targets: b, x: x1, duration: 1500, ease: 'Sine.out',
+            onUpdate: () => s.setPosition(Math.round(b.x), CFG.GROUND_Y),
+            onComplete: () => { s.anims.stop(); s.setTexture('rafal_stand'); this.time.delayedCall(250, () => this.rafalDialog()); },
+        });
+    }
+    /** Krótka rozmowa przed walką: portret + kwestie (czasy: CFG.RAFAL.DIALOG_LINE_TIME). */
+    rafalDialog() {
+        const lines = [
+            ['ŁADNA BLASZANKA, KOLEGA!', 'DAWAJ ZŁOTO ALBO KASTET!'],
+            ['ZARAZ BĘDZIE Z CIEBIE', 'PUSZKA PO KONSERWIE!'],
+        ];
+        const d = 14, x = 52, y = 38, w = W - 104, h = 80;
+        const parts = [
+            this.add.rectangle(x, y, w, h, 0x8c1e14).setOrigin(0),
+            this.add.rectangle(x + 2, y + 2, w - 4, h - 4, 0xffd040).setOrigin(0),
+            this.add.rectangle(x + 4, y + 4, w - 8, h - 8, 0x1e163c).setOrigin(0),
+            this.add.rectangle(x + 8, y + 8, 64, 64, 0x3a2a5c).setOrigin(0),
+            this.add.image(x + 8, y + 8, 'rafal_portrait').setOrigin(0),
+            pxText(this, x + 84, y + 10, 'RAFAŁ DRES', { scale: 1, color: '#ffd040', shadow: '#3a1008', ox: 0 }),
+        ];
+        const t1 = pxText(this, x + 84, y + 28, lines[0][0], { scale: 2, color: '#ffffff', shadow: '#2a1040', ox: 0 });
+        const t2 = pxText(this, x + 84, y + 50, lines[0][1], { scale: 2, color: '#ffffff', shadow: '#2a1040', ox: 0 });
+        parts.push(t1, t2);
+        parts.forEach(o => o.setScrollFactor(0).setDepth(d));
+        audioSfx('slam', 0.5);
+        const T = CFG.RAFAL.DIALOG_LINE_TIME * 1000;
+        this.time.delayedCall(T, () => { t1.setString(lines[1][0]); t2.setString(lines[1][1]); audioSfx('punch', 0.5); });
+        this.time.delayedCall(T * 2, () => {
+            parts.forEach(o => o.destroy());
+            this.setBossHud(true);
+            this.showBanner('BOSS FIGHT', 'RAFAŁ DRES');
+            this.invuln = 0;
+            this.mode = 'boss';
+            audioPlay('boss');
+        });
+    }
+    rafalBox() {
+        const b = this.boss;
+        return { l: b.x - 10, r: b.x + 10, t: CFG.GROUND_Y - 60, b: CFG.GROUND_Y };
+    }
+    rafalStart(state, t) { const b = this.boss; b.state = state; b.stateT = t; b.hitDone = false; }
+    rafalHurtArek(b) {                                                   // trafienie pięścią / kastetem + odrzut
+        const ok = this.invuln <= 0 && this.state === 'play';
+        this.hurt();
+        if (ok && this.state === 'play') this.knockVx = (Math.sign(this.a.x - b.x) || 1) * CFG.RAFAL.KNOCKBACK;
+    }
+    updateRafal(dt, body, sword) {
+        const R = CFG.RAFAL, b = this.boss, a = this.a;
+        b.invuln = Math.max(0, b.invuln - dt);
+        b.stun = Math.max(0, b.stun - dt);
+        b.punchCd = Math.max(0, b.punchCd - dt);
+        const rage = b.hp <= Math.ceil(b.maxHp * R.RAGE_HP_FRAC);
+        if (rage && !b.rage) { b.rage = true; this.bubbleAt(b.x, CFG.GROUND_Y - 82, '!!!', '#ff3030'); audioSfx('rush', 0.5); }
+        const spd = R.SPEED * (rage ? R.RAGE_SPEED : 1), cd = rage ? R.RAGE_CD : 1, wm = rage ? R.RAGE_WINDUP : 1;
+        const minX = this.camX + 40, maxX = this.camX + W - 40;
+        const G = CFG.GROUND_Y;
+        let tex = 'rafal_stand', walking = false, blink = false;
+        const dx = a.x - b.x, dist = Math.abs(dx);
+        if (b.stun > 0) {
+            b.x += b.knock * dt; b.knock *= Math.pow(0.02, dt);
+            if (b.glow) { b.glow.destroy(); b.glow = null; }
+        } else if (b.state === 'pw') {                                   // zamach przed prostym (zapowiedź: miga)
+            b.stateT -= dt; tex = 'rafal_punch_1'; blink = true;
+            if (b.stateT <= 0) { this.rafalStart('jab', R.JAB_TIME); audioSfx('punch'); }
+        } else if (b.state === 'jab') {
+            b.stateT -= dt; tex = 'rafal_punch_2';
+            this.rafalPunchHit(b, body, R.JAB_TIME - b.stateT > 0.04);
+            if (b.stateT <= 0) this.rafalStart('hw', R.HOOK_WINDUP * wm);
+        } else if (b.state === 'hw') {                                   // zamach przed sierpowym
+            b.stateT -= dt; tex = 'rafal_punch_1'; blink = true;
+            if (b.stateT <= 0) { this.rafalStart('hook', R.HOOK_TIME); audioSfx('punch'); }
+        } else if (b.state === 'hook') {
+            b.stateT -= dt; tex = 'rafal_punch_3';
+            this.rafalPunchHit(b, body, R.HOOK_TIME - b.stateT > 0.06);
+            if (b.stateT <= 0) { this.rafalStart('rest', R.PUNCH_RECOVER * cd); b.punchCd = R.PUNCH_RECOVER * cd + 0.5 * cd; }
+        } else if (b.state === 'tw') {                                   // zamach przed rzutem (kastet w górze, złota poświata)
+            b.stateT -= dt; tex = 'rafal_throw_1'; blink = true;
+            if (b.glow) b.glow.setPosition(Math.round(b.x - b.face * 11), G - 62).setScale(1 + 0.6 * (1 - Math.max(0, b.stateT) / (R.THROW_WINDUP * wm))).setAlpha(0.6 + 0.4 * Math.sin(this.clock * 30));
+            if (b.stateT <= 0) { if (b.glow) { b.glow.destroy(); b.glow = null; } this.rafalStart('tr', R.THROW_TIME); this.rafalThrow(b, rage); }
+        } else if (b.state === 'tr') {                                   // wypuszczenie
+            b.stateT -= dt; tex = 'rafal_throw_2';
+            if (b.stateT <= 0) this.rafalStart('rest', 0.35 * cd);
+        } else if (b.state === 'rest') {                                 // odpoczynek - bezbronny, można go bić
+            b.stateT -= dt;
+            if (b.stateT <= 0) b.state = 'walk';
+        } else {                                                         // 'walk': idzie do Arka, wybiera atak
+            b.face = Math.sign(dx) || b.face;
+            b.throwCd -= dt;
+            if (dist < R.PUNCH_RANGE && b.punchCd <= 0) { this.rafalStart('pw', R.PUNCH_WINDUP * wm); this.popup(b.x, G - 72, '!', '#ffd040'); }
+            else if (dist >= R.THROW_MIN_DIST && b.throwCd <= 0) {
+                this.rafalStart('tw', R.THROW_WINDUP * wm);
+                b.glow = this.add.image(b.x, G - 62, 'cross_glow').setDepth(8).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc030);
+                this.popup(b.x, G - 72, '!', '#ffd040');
+                audioSfx('throw', 0.45);
+            } else if (dist > R.PUNCH_RANGE - 10) { b.x += b.face * spd * dt; walking = true; }
+        }
+        b.x = Phaser.Math.Clamp(b.x, minX - 10, maxX + 10);
+        const s = b.s;
+        if (walking) {
+            if (!s.anims.isPlaying || !s.anims.currentAnim || s.anims.currentAnim.key !== 'rafal_walk') s.play('rafal_walk');
+            s.anims.timeScale = rage ? 1.5 : 1;
+        } else { s.anims.stop(); s.setTexture(tex); }
+        s.setPosition(Math.round(b.x), G).setFlipX(b.face < 0);
+        s.setAlpha(b.invuln > 0 ? (Math.floor(b.invuln * 14) % 2 ? 0.4 : 1) : 1);
+        if (blink && Math.floor(this.clock * 18) % 2) s.setTintFill(0xffe080);
+        else if (rage) s.setTint(Math.floor(this.clock * 10) % 2 ? 0xff9080 : 0xffc0a8);
+        else s.clearTint();
+        if (rage && Math.random() < 0.15) this.burst(b.x + Phaser.Math.Between(-8, 8), G - 50, 0xff3020, 1);
+
+        this.updateKastets(dt, body, sword);
+        if (this.state !== 'play') return;
+        const rb = this.rafalBox();
+        if (sword && b.invuln <= 0 && PlayScene.hit(sword, rb)) this.hitBoss(Math.sign(b.x - a.x) || 1);
+        if (this.boss && this.boss.hp > 0 && PlayScene.hit(body, rb)) {
+            const stomp = a.vy > 30 && (a.prevY - 2) <= rb.t + 14;
+            if (stomp) {
+                if (b.invuln <= 0) this.hitBoss(Math.sign(b.x - a.x) || 1);
+                a.vy = -CFG.STOMP_BOUNCE; a.onGround = false; a.y = rb.t - 3;
+                audioSfx('stomp');
+                this.burst(b.x, rb.t, 0xffffff, 6);
+            } else if (b.stun <= 0) this.rafalHurtArek(b);
+        }
+        if (this.mode === 'boss') this.updateHearts(body);
+    }
+    rafalPunchHit(b, body, active) {                                     // pole rażenia pięści przed Rafałem (raz na cios)
+        if (!active || b.hitDone) return;
+        const R = CFG.RAFAL, G = CFG.GROUND_Y;
+        const box = b.face > 0 ? { l: b.x + 4, r: b.x + 4 + R.PUNCH_REACH, t: G - 54, b: G - 14 } : { l: b.x - 4 - R.PUNCH_REACH, r: b.x - 4, t: G - 54, b: G - 14 };
+        if (PlayScene.hit(body, box)) {
+            b.hitDone = true;
+            this.burst((box.l + box.r) / 2, G - 34, 0xffffff, 6);
+            this.rafalHurtArek(b);
+        }
+    }
+    rafalThrow(b, rage) {
+        const R = CFG.RAFAL;
+        const dir = b.face;
+        const high = Math.random() < R.KASTET_HIGH_CHANCE;
+        audioSfx('throw');
+        this.spawnKastet(b.x + dir * 20, dir, high);
+        if (rage && Math.random() < R.RAGE_DOUBLE_CHANCE) {              // w szale: drugi kastet tuż za pierwszym (ta sama wysokość)
+            this.time.delayedCall(420, () => { if (this.boss && this.boss.hp > 0 && this.mode === 'boss') { audioSfx('throw'); this.spawnKastet(this.boss.x + dir * 20, dir, high); } });
+        }
+        b.throwCd = Phaser.Math.FloatBetween(R.THROW_CD_MIN, R.THROW_CD_MAX) * (rage ? R.RAGE_CD : 1);
+    }
+    spawnKastet(x, dir, high) {
+        const cy = CFG.GROUND_Y - (high ? CFG.CROSS_HIGH_Y : CFG.CROSS_LOW_Y);
+        const s = this.add.sprite(x, cy, 'rafal_kastet').setDepth(7.6);
+        s.play('kastet_spin');
+        this.kastets.push({ s, wx: x, cy, vx: dir * CFG.RAFAL.KASTET_SPEED, high });
+        this.burst(x, cy, 0xffd040, 5);
+    }
+    updateKastets(dt, body, sword) {
+        for (let i = this.kastets.length - 1; i >= 0; i--) {
+            const k = this.kastets[i];
+            k.wx += k.vx * dt;
+            k.s.setPosition(Math.round(k.wx), k.cy);
+            const box = { l: k.wx - 9, r: k.wx + 9, t: k.cy - 7, b: k.cy + 7 };
+            let remove = k.wx < this.camX - 30 || k.wx > this.camX + W + 30;
+            if (sword && PlayScene.hit(sword, box)) { this.burst(k.wx, k.cy, 0xffe080, 10); audioSfx('clang'); remove = true; }   // miecz odbija kastet
+            else if (PlayScene.hit(body, box)) { this.burst(k.wx, k.cy, 0xffd040, 8); this.rafalHurtArek(this.boss || { x: k.wx - Math.sign(k.vx) * 40 }); remove = true; }
+            if (remove) { k.s.destroy(); this.kastets.splice(i, 1); }
+            if (this.state !== 'play') return;
+        }
+    }
+    rafalDefeated() {
+        const b = this.boss;
+        this.mode = 'bossend';
+        this.invuln = 99;
+        audioStop(0.3);
+        this.kastets.forEach(k => k.s.destroy()); this.kastets = [];
+        this.setBossHud(false);
+        b.hp = 0; b.stun = 99;
+        if (b.glow) { b.glow.destroy(); b.glow = null; }
+        b.s.anims.stop(); b.s.setTexture('rafal_stand').clearTint().setAlpha(1);
+        this.tweens.add({ targets: b.s, angle: -b.face * 85, duration: 500, ease: 'Quad.in' });
+        this.time.delayedCall(900, () => {
+            this.sparkle(b.x, CFG.GROUND_Y - 10, 24, [0xffffff, 0xffd040, 0xff6040]);
+            this.tweens.add({ targets: b.s, alpha: 0, duration: 400, onComplete: () => b.s.destroy() });
+            audioSfx('heart');
+        });
+        this.time.delayedCall(1500, () => this.popup(this.a.x, this.a.y - 70, 'MISSION 2 CLEAR!', '#ffffff'));
+        this.time.delayedCall(2800, () => { if (this.state === 'play') this.startNextLevel(); });
+    }
+
     /* ---------- czary Kamila ---------- */
     startCast() {
         const b = this.boss, fin = this.final;
@@ -1873,7 +2127,8 @@ class PlayScene extends Phaser.Scene {
         this.popup(b.x, CFG.GROUND_Y - 74, b.hp > 0 ? 'HIT!' : 'K.O.!', '#ff5040');
         b.s.setTintFill(0xffffff);
         this.time.delayedCall(90, () => { if (b.s && b.s.active) b.s.clearTint(); });
-        if (b.hp <= 0) { if (this.final) this.startEnding(); else this.bossDefeated(); }
+        if (b.kind === 'rafal') { b.state = 'walk'; b.stateT = 0; b.punchCd = 0.6; b.hitDone = true; b.s.clearTint(); }
+        if (b.hp <= 0) { if (this.final) this.startEnding(); else if (b.kind === 'rafal') this.rafalDefeated(); else this.bossDefeated(); }
     }
 
     /* ---------- auto Kamila (w finale parkuje w arenie i można je zniszczyć) ---------- */
@@ -2050,7 +2305,7 @@ class PlayScene extends Phaser.Scene {
                         let started = false;
                         this.tweens.add({
                             targets: car, x: out, duration: 2000, ease: 'Quad.in',
-                            onUpdate: () => { if (!started && car.x > this.camX + W - this.carHalf) { started = true; this.startLevel2(); } },
+                            onUpdate: () => { if (!started && car.x > this.camX + W - this.carHalf) { started = true; this.startNextLevel(); } },
                             onComplete: () => { car.destroy(); this.car = null; if (this.carSnd) { this.carSnd.stop(0.25); this.carSnd = null; } },
                         });
                     },
@@ -2059,12 +2314,14 @@ class PlayScene extends Phaser.Scene {
         });
     }
 
-    /* ---------- poziom 2 ---------- */
-    startLevel2() {
-        this.level = 2;
-        this.L = this.levelParams(2);
+    /* ---------- następny bieg (po bossie misji 2 -> misja 3, po bossie misji 4 -> misja 5) ---------- */
+    startNextLevel() {
+        this.level += 1;
+        this.L = this.levelParams(this.level);
         this.mode = 'run';
         this.final = false;
+        this.bossKind = null;
+        this.knockVx = 0;
         this.bossReached = false;
         this.boss = null;
         this.score = 0;
@@ -2074,7 +2331,7 @@ class PlayScene extends Phaser.Scene {
         this.nextObstacleX = this.camX + W + 380;
         this.sinceHeart = 0;
         this.refreshHud();
-        this.showBanner('LEVEL 2', `REACH ${this.L.goal} POINTS`);
+        this.showBanner(`MISSION ${this.level * 2 - 1}`, `REACH ${this.L.goal} POINTS`);
         audioPlay('level2');
     }
 
@@ -2235,7 +2492,7 @@ class PlayScene extends Phaser.Scene {
         const dim = this.add.rectangle(0, 0, W, H, 0x0c0818, 0.62).setOrigin(0).setScrollFactor(0).setDepth(d).setAlpha(0);
         this.tweens.add({ targets: dim, alpha: 1, duration: 300 });
         const t = pxText(this, W / 2, 56, title, { scale: 6, color, shadow }).setScrollFactor(0).setDepth(d + 1);
-        const sub = this.mode === 'boss' ? (this.final ? 'KS. KAMIL WINS... AGAIN' : 'KS. KAMIL WINS THIS ROUND') : `REACH ${this.L.goal} POINTS TO WIN`;
+        const sub = this.mode === 'boss' ? (this.final ? 'KS. KAMIL WINS... AGAIN' : this.bossKind === 'rafal' ? 'RAFAŁ DRES WINS THIS ROUND' : 'KS. KAMIL WINS THIS ROUND') : `REACH ${this.L.goal} POINTS TO WIN`;
         pxText(this, W / 2, 112, sub, { scale: 2, color: '#ffffff', shadow: '#2a1040' }).setScrollFactor(0).setDepth(d + 1);
         const tot = 'SCORE ' + String(this.totalScore).padStart(4, '0') + '   CZAS ' + (window.FibiLeaderboard ? FibiLeaderboard.formatTime(this.runTimeMs) : '00:00');
         pxText(this, W / 2, 140, tot, { scale: 2, color: '#ffd040', shadow: '#3a1008' }).setScrollFactor(0).setDepth(d + 1);

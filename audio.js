@@ -14,7 +14,7 @@
      unlock()            - odblokowanie po pierwszym geście (klik / klawisz / dotyk)
      play(nazwa)         - title | intro | level | level2 | boss | finalboss | fury | victory | credits | gameover
      stop(fade)          - cisza (krótkie wyciszenie)
-     sfx(nazwa, opcje)   - jump | sword | hurt | kill | heart | bossHit | cross | carHit | explosion | rush | stomp | click
+     sfx(nazwa, opcje)   - jump | sword | hurt | kill | heart | bossHit | cross | punch | throw | clang | carHit | explosion | rush | stomp | click
                            transformacja: charge(czas s) | thunder | sparkle(czas s) | reveal   (lightning = thunder)
                            auto: brake | slam
      carEngine()         - uchwyt silnika auta {set({speed,pan,vol,pitch}), stop(fade)} (speed 0..1.3)
@@ -685,6 +685,9 @@
             case 'reveal': sfxReveal(eng, bus, t); break;
             case 'brake': sfxBrake(eng, bus, t, o.dur || 0.75); break;
             case 'slam': sfxSlam(eng, bus, t); break;
+            case 'punch': noiseHit(eng, bus, t, 0.09, 0.34, 'lowpass', 1800, 180, 0.8); sweep('sine', 190, 70, 0.12, 0.34); break;        // gluchy cios piescia
+            case 'throw': sweep('triangle', 420, 1500, 0.2, 0.1); noiseHit(eng, bus, t, 0.2, 0.12, 'bandpass', 1800, 4200, 1.4); break;   // swist rzutu kastetu
+            case 'clang': sweep('square', 1500, 1100, 0.12, 0.1, 0.25); sweep('triangle', 2300, 1700, 0.18, 0.08); noiseHit(eng, bus, t, 0.06, 0.2, 'highpass', 3500); break;   // miecz odbija kastet
             default: break;
         }
     }
