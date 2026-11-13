@@ -1,7 +1,7 @@
 'use strict';
 /* =====================================================================
    Fibi Run - retro side-scroller (Phaser 3), 16-bit pixel art
-   Sceny: Boot -> Title -> Intro -> Play (poziom 1; ekrany końca gry/wygranej to nakładki)
+   Sceny: Boot -> Title -> Intro -> Play (poziom 1 -> przelot -> boss Kamil -> poziom 2; game over / wygrana to nakładki)
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -83,8 +83,8 @@ const CFG = {
 
     // --- przejście po poziomie 1 i walka z bossem (ksiądz Kamil) ---
     ARENA_RUSH_DISTANCE: 1100,  // o ile px ekran gwałtownie przesuwa się w prawo (bohater ląduje przy lewej krawędzi)
-    ARENA_RUSH_TIME: 2.2,
-    ARENA_HERO_X: 34,           // gdzie na ekranie stoi Arek po przelocie (skrajnie lewa strona)       // s - jak długo trwa ten przelot
+    ARENA_RUSH_TIME: 2.2,       // s - jak długo trwa ten przelot
+    ARENA_HERO_X: 34,           // gdzie na ekranie stoi Arek po przelocie (skrajnie lewa strona)
     ARENA_CAR_TIME: 1.7,        // s - dojazd samochodu Kamila
     ARENA_CAR_STOP: 0.70,       // gdzie auto staje (ułamek szerokości ekranu)
     BOSS_HERO_SPEED: 150,       // px/s - ruch Arka w arenie (lewo/prawo dowolnie)
