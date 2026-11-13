@@ -1,6 +1,6 @@
-# ArekRun
+# Fibi Run
 
-**ArekRun** – prosta gra 2D w stylu retro lat 90. (16-bit pixel art, SNES / Genesis era).
+**Fibi Run** – prosta gra 2D w stylu retro lat 90. (16-bit pixel art, SNES / Genesis era).
 Arek w złotej zbroi płytowej z dużym mieczem biegnie w prawo po szutrowej drodze, przeskakuje beczki i walczy z potworkami.
 
 Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – reklama/gra 16-bit side-scroller z 2026 roku.
@@ -29,9 +29,32 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – reklama/gra 16-bit
 ## Ekran powitalny
 
 Pierwszy ekran po uruchomieniu gry:
-- Układ: **AREK [twarz] RUN** – słowo „AREK” po lewej, twarz głównego bohatera na środku (w złoto-czerwonej ramce), słowo „RUN” po prawej.
-- Twarz z assetów (`assets/portraits/face_portrait.png`, w grze przetworzona do `assets/game/face.png`).
+- Układ: **FIBI [portret] RUN** – słowo „FIBI” po lewej, portret psa Fibi na środku (w złoto-czerwonej ramce), słowo „RUN” po prawej.
+- Portret z assetów (`assets/portraits/fibi_portrait_front.png`, w grze przetworzony do `assets/game/fibi_face.png` skryptem `tools/process_assets.py`).
 - Pod spodem czerwony przycisk **START NEW GAME** (klik / tap, Spacja lub Enter), który rozpoczyna poziom 1.
+
+---
+
+## Intro (przerywnik)
+
+Krótka scenka po kliknięciu **START NEW GAME**, przed poziomem 1:
+1. Arek idzie spokojnie **w lewo** z psem na smyczy po szutrowej drodze.
+2. Obok nich przejeżdża **ksiądz Kamil w samochodzie** (widać go przez szybę auta).
+3. Pies się płoszy, wyrywa i **ucieka w prawo**.
+4. Arek dobywa **miecza** i zaczyna **biec za psem w prawo** – startuje poziom 1.
+
+Jak to działa w grze (`IntroScene` w `game.js`, czasy i prędkości w `CFG` – sekcja „intro”):
+- Całość trwa ok. **9 s**, bez dialogów. Tło, droga i słońce są takie same jak na poziomie 1.
+- Arek (sprite obrócony w lewo) idzie w miejscu, a tło przewija się w prawo; pies idzie za nim na smyczy (linia pikseli od ręki Arka do obroży).
+- Samochód ksiądza Kamila przejeżdża z lewej do prawej, na dalszym pasie drogi (za Arkiem i psem).
+- Gdy auto mija psa, pies się płoszy (wykrzyknik, podskok), smycz pęka i pies ucieka w prawo poza ekran.
+- Arek staje, odwraca się, dobywa miecza (pozycja ataku) i biegnie za psem – potem płynnie startuje poziom 1.
+- **Pomijanie:** Spacja, Enter lub tap/klik w dowolnym miejscu (podpowiedź „SPACE - SKIP” / „TAP - SKIP” w rogu). Na adres z `?nointro` gra od razu zaczyna poziom 1.
+
+Grafiki:
+- Ksiądz Kamil – gotowe: `assets/portraits/ksiadz_kamil_portrait_front.png` (portret do dialogów), `assets/sprites/ksiadz_kamil_stand.png`, `ksiadz_kamil_walk_1.png`, `ksiadz_kamil_walk_2.png` (wersje `_x4` – 4x większe).
+- Samochód z księdzem Kamilem – gotowe: `assets/sprites/ksiadz_kamil_car.png`, `ksiadz_kamil_car_1.png`, `ksiadz_kamil_car_2.png` (219×100, czerwony hatchback zwrócony w prawo; `_1` i `_2` to animacja jazdy; wersje `_x4`). W grze kopie w `assets/game/car_1.png`, `car_2.png` (skrypt `tools/process_assets.py`).
+- Pies **Fibi** – gotowe: `assets/sprites/fibi_stand.png`, `fibi_walk_1.png`, `fibi_walk_2.png` (+ portret `assets/portraits/fibi_portrait_front.png`, na razie niewykorzystany). W intro użyte klatki chodu (spacer i ucieczka, szybciej) oraz „stój” (moment spłoszenia); w grze przetworzone do wysokości 28 px: `assets/game/fibi_*.png` (`tools/process_assets.py`).
 
 ---
 
@@ -114,7 +137,9 @@ assets/
 │   └── fibi_walk_2.png               # 113×72, chód klatka 2 (+ _x4 podgląd)
 ├── game/                             # przetworzone pod grę (tools/process_assets.py)
 │   ├── arek_run_1..3.png, arek_jump.png, arek_attack.png
-│   ├── face.png
+│   ├── car_1.png, car_2.png
+│   ├── fibi_walk_1.png, fibi_walk_2.png, fibi_stand.png
+│   ├── fibi_face.png                 # portret Fibi na ekran powitalny
 │   └── assets.js                     # te same PNG jako data-URI (działa z file://)
 └── portraits/
     ├── dialogue_portrait.png
@@ -136,7 +161,7 @@ Wszystkie grafiki mają transparentne tło i są w stylu 16-bit.
 ## Plan projektu (roadmap)
 
 1. **README** – założenia gry (ten plik)
-2. Ekran powitalny: napis Arek Run, twarz bohatera, START NEW GAME
+2. Ekran powitalny: napis Fibi Run, portret Fibi, START NEW GAME (+ intro: Arek, pies i samochód księdza Kamila)
 3. Scena Phaser: przesuwający się ekran, szutrowa droga, bieg Arka w prawo (szybciej / wolniej), blokada krawędzi ekranu
 4. Skok + beczki + punkty za przeskok (+30)
 5. Życia, utrata życia przy dotknięciu, ekran końca gry
