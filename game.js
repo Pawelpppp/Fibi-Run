@@ -187,6 +187,43 @@ const CFG = {
     ENDING_WALK_SPEED: 58,      // px/s - Arek odchodzi w lewo
     ENDING_FIBI: true,          // Fibi dobiega do Arka na koniec
 
+    // --- misja 2 -> 3: po Rafale zamrażający czar, Kamil zabiera Rafała i Fibi, piorun rozbija lód i zbroję (Arek w T-shircie) ---
+    FREEZE: {
+        SPELL_DELAY: 0.9,         // s po upadku Rafała - czar leci z prawej strony
+        SPELL_SPEED: 640,         // px/s - szybki czar
+        HOLD_BEFORE_CAR: 1.1,     // s - Arek stoi w lodzie, zanim nadjedzie Kamil
+        CAR_OFFSET: 78,           // px - auto staje tyle za Rafałem (po prawej)
+        DIALOG_LINE_TIME: 2.0,    // s - jak długo widać każdą kwestię Kamila
+        STORM_DELAY: 0.7,         // s po odjeździe auta - ciemnieje niebo
+        STORM_DIM: 0.5,           // zaciemnienie przed piorunem (0..1)
+        STORM_TIME: 1.1,          // s - ładowanie burzy do uderzenia (dźwięk "charge")
+        SHATTER_FRAME_TIME: 0.09, // s na klatkę kruszenia lodu (ice_shatter_1..3)
+        // punkt zakotwiczenia grafik (ułamek wysokości płótna; poziomo środek): dół bryły lodu / stopy Arka casual stoją na ziemi
+        ORIGIN_FROZEN_Y: 194 / 228,   // arek_frozen, ice_shatter_1..3 (płótno 221x228; odłamki spadają poniżej linii ziemi)
+        ORIGIN_ARMOR_Y: 224 / 232,    // armor_shatter_1..3 (264x232; stopy Arka w T-shircie)
+        SHARDS: 22,               // odłamki lodu
+        ARMOR_PIECES: 3,          // ile kawałków zbroi odlatuje (armor_shatter_1..3)
+        SHIVER_TIME: 1.0,         // s - Arek w T-shircie otrząsa się ("BRR"), potem startuje misja 3
+        TEXT: [                   // dialog Kamila (czcionka pikselowa: A-Z, polskie litery, ? ! , .)
+            ['ZIMNO CI, RYCERZYKU?', 'RAFAŁ, DO AUTA!'],
+            ['IDZIEMY NA LODY,', 'A TY SIĘ OCHŁODŹ!'],
+        ],
+    },
+    // --- misja 3: Arek bez miecza; w połowie celu leży miecz, po podniesieniu piorun przywraca zbroję ---
+    SWORD_PICKUP: {
+        AT_FRAC: 0.5,             // jaka część celu misji 3 (CFG.LEVEL2.GOAL_SCORE) uruchamia pojawienie się miecza
+        AHEAD: 60,                // px za prawą krawędzią ekranu, gdzie leży miecz
+        CLEAR_AFTER: 200,         // px bez przeszkód za mieczem
+        REACH: 14,                // px - tyle od miecza Arek go zabiera
+        LIFT_TIME: 0.8,           // s - Arek unosi miecz nad głowę
+        DIM_TIME: 0.6,            // s - ekran ciemnieje
+        DIM: 0.55,                // zaciemnienie (0..1)
+        HOLD_TIME: 0.4,           // s - cisza przed piorunem
+        CHARGE_TIME: 0.9,         // s - ładowanie (dźwięk "charge")
+        TRANSFORM_TIME: 0.9,      // s - przemiana (błysk, iskry)
+        NO_SWORD_MSG_CD: 1.0,     // s - odstęp komunikatu "NO SWORD" po próbie ataku
+    },
+
     // --- misja 3 (bieg po pokonaniu Rafała; licznik punktów zaczyna od 0) ---
     LEVEL2: {
         GOAL_SCORE: 3000,        // tyle punktów trzeba zdobyć w misji 3
@@ -619,6 +656,7 @@ function makeTextures(scene) {
         for (let i = 0; i < 9; i++) c.fillRect(12 + i, 20 + i, 3, 3);     // jelec
         c.fillRect(10, 32, 5, 5);                                          // rękojeść
     });
+
 }
 
 /* =====================================================================
@@ -802,7 +840,9 @@ class BootScene extends Phaser.Scene {
             'kamil_laugh_walk_1', 'kamil_laugh_walk_2', 'kamil_laugh_walk_3', 'kamil_laugh_walk_4', 'kamil_bubble_haha',
             'rafal_stand', 'rafal_walk_1', 'rafal_walk_2', 'rafal_walk_3', 'rafal_walk_4',
             'rafal_punch_1', 'rafal_punch_2', 'rafal_punch_3', 'rafal_throw_1', 'rafal_throw_2',
-            'rafal_kastet', 'rafal_kastet_spin_1', 'rafal_kastet_spin_2', 'rafal_kastet_spin_1m', 'rafal_portrait',
+            'rafal_kastet', 'rafal_kastet_spin_1', 'rafal_kastet_spin_2', 'rafal_kastet_spin_1m', 'rafal_portrait', 'kamil_portrait',
+            'arek_frozen', 'ice_shatter_1', 'ice_shatter_2', 'ice_shatter_3', 'armor_shatter_1', 'armor_shatter_2', 'armor_shatter_3',
+            'freeze_spell_1', 'freeze_spell_2', 'sword_pickup',
         ];
         names.forEach(n => {
             // data-URI (assets/game/assets.js) działa też z file://; fallback: zwykłe pliki
@@ -826,6 +866,7 @@ class BootScene extends Phaser.Scene {
             key: 'casual_walk', frameRate: CFG.WALK_FPS, repeat: -1,
             frames: ['arek_casual_run_3', 'arek_casual_stand', 'arek_casual_run_6', 'arek_casual_stand'].map(key => ({ key })),
         });
+        this.anims.create({ key: 'freeze_spell', frameRate: 16, repeat: -1, frames: [{ key: 'freeze_spell_1' }, { key: 'freeze_spell_2' }] });
         this.anims.create({ key: 'car_drive', frameRate: 8, repeat: -1, frames: [{ key: 'car_1' }, { key: 'car_2' }] });
         this.anims.create({ key: 'dog_walk', frameRate: 4, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
         this.anims.create({ key: 'dog_run', frameRate: 12, repeat: -1, frames: [{ key: 'fibi_walk_1' }, { key: 'fibi_walk_2' }] });
@@ -1212,7 +1253,12 @@ class PlayScene extends Phaser.Scene {
         this.startLevel = (data && data.level) || 1;
         this.startArena = !!(data && data.arena);       // checkpoint: po przegranej z bossem wracamy od razu do areny
         this.carryScore = (data && data.totalScore) || 0;
+        // misja 3 zaczyna się w T-shircie i bez miecza (do podniesienia w połowie); wszędzie indziej Arek w zbroi (restart po końcu gry = misja 1 w zbroi)
+        this.armored = (data && data.armored !== undefined) ? !!data.armored : !(this.startLevel === 2 && !this.startArena);
     }
+    runAnim() { return this.armored ? 'run' : 'casual_run'; }
+    jumpKey(n) { return (this.armored ? 'arek_jump_' : 'arek_casual_jump_') + n; }
+    idleKey() { return this.armored ? 'arek_run_2' : 'arek_casual_stand'; }
 
     /** Parametry poziomu-biegu (1: stałe CFG = misja 1, 2: CFG.LEVEL2 = misja 3, 3: CFG.LEVEL3 = misja 5). Boss po biegu N to misja 2N. */
     levelParams(level) {
@@ -1258,6 +1304,8 @@ class PlayScene extends Phaser.Scene {
         this.events.once('shutdown', () => { if (this.carSnd) { this.carSnd.stop(0.05); this.carSnd = null; } });
         this.final = false; this.bossKind = null; this.knockVx = 0; this.kastets = []; this.bossReached = false; this.arekManual = false; this.arekDY = 0; this.endVx = 0; this.endTarget = null; this.endDog = null; this.endDone = false; this.jumpCrouchT = 0; this.jumpLandT = 0;
         this.bossHudOn = false; this.heroMoving = false;
+        this.swordItem = null; this.swordSpawned = false; this.swordTouched = false; this.pickSword = null; this.pickG = null; this.noSwordT = 0;
+        this.frozen = false; this.arekDX = 0; this.swordGotThisRun = false; this.iceSpr = null; this.afterCarLeaves = null; this.swordHud = null;
         this.spawning = true;
         this.nextObstacleX = CFG.FIRST_OBSTACLE_X;
         this.sinceHeart = 0;
@@ -1271,8 +1319,8 @@ class PlayScene extends Phaser.Scene {
 
         // --- Arek ---
         this.a = { x: this.startX, y: CFG.GROUND_Y, vy: 0, prevY: CFG.GROUND_Y, onGround: true };
-        this.arek = this.add.sprite(this.a.x, this.a.y, 'arek_run_1').setOrigin(0.5, 1).setDepth(6);
-        this.arek.play('run');
+        this.arek = this.add.sprite(this.a.x, this.a.y, this.armored ? 'arek_run_1' : 'arek_casual_run_1').setOrigin(0.5, 1).setDepth(6);
+        this.arek.play(this.runAnim());
         this.pose = 'run';
         this.slash = this.add.image(0, 0, 'slash').setOrigin(0, 0.5).setDepth(7).setVisible(false);
 
@@ -1328,6 +1376,12 @@ class PlayScene extends Phaser.Scene {
             this.bossHud.push(this.add.image(W / 2 + (i - (CFG.BOSS_HP - 1) / 2) * 20, 16, 'cross').setOrigin(0.5, 0).setScrollFactor(0).setDepth(10));
         }
         this.bossHud.forEach(o => o.setVisible(false));
+        // misja 3: wskaźnik braku miecza (+ znacznik połowy celu na pasku postępu = tu leży miecz)
+        const tick = this.add.rectangle(W - 8 - 120 + 59, 24, 2, 10, 0xffffff).setOrigin(0).setScrollFactor(0).setDepth(10.5);
+        const no = pxText(this, W - 8, 38, 'NO SWORD', { scale: 1, color: '#ff6a5a', shadow: '#3a1008', ox: 1 }).setScrollFactor(0).setDepth(10);
+        const ok = pxText(this, W - 8, 38, 'SWORD!', { scale: 1, color: '#ffe060', shadow: '#3a1008', ox: 1 }).setScrollFactor(0).setDepth(10).setVisible(false);
+        const icon = this.add.image(W - 8 - 8 * 6 - 12, 41, 'sword').setScale(0.4).setAngle(60).setTint(0x8a90a8).setScrollFactor(0).setDepth(10);
+        this.swordHud = { tick, no, ok, icon, okUntil: 0 };
         this.refreshHud();
     }
     scoreStr() { return 'SCORE ' + String(this.score).padStart(4, '0'); }
@@ -1341,6 +1395,11 @@ class PlayScene extends Phaser.Scene {
             this.timeTxt.setString(FibiLeaderboard.formatTime(ms));
         }
         this.bar.width = Math.max(1, Math.round(118 * Math.min(1, this.score / this.L.goal)));
+        if (this.swordHud) {
+            const h = this.swordHud, noSword = !this.armored && this.level === 2 && this.state === 'play';
+            h.no.setVisible(noSword); h.icon.setVisible(noSword || h.ok.visible);
+            h.tick.setVisible(noSword && !this.swordGotThisRun);
+        }
         if (this.boss) this.bossHud.slice(1).forEach((c, i) => {
             if (this.boss.kind === 'rafal') c.setTexture('rafal_kastet').setTint(i < this.boss.hp ? 0xffffff : 0x3a3048);   // życie Rafała = kastet
             else c.setTexture(i < this.boss.hp ? 'cross' : 'cross_empty').clearTint();
@@ -1579,7 +1638,7 @@ class PlayScene extends Phaser.Scene {
             return;
         }
 
-        const locked = this.mode === 'rush' || this.mode === 'arrive' || this.mode === 'bossend' || this.mode === 'ending';
+        const locked = this.mode === 'rush' || this.mode === 'arrive' || this.mode === 'bossend' || this.mode === 'ending' || this.mode === 'pickup';
         if (locked) { jumpPress = false; attackPress = false; }
         const left = !locked && (k.left.isDown || k.a.isDown || this.touch.left);
         const right = !locked && (k.right.isDown || k.d.isDown || this.touch.right);
@@ -1646,7 +1705,10 @@ class PlayScene extends Phaser.Scene {
         // --- atak ---
         this.attackCd = Math.max(0, this.attackCd - dt);
         if (this.attackT > 0) this.attackT = Math.max(0, this.attackT - dt);
-        if (attackPress && this.attackCd <= 0) {
+        this.noSwordT = Math.max(0, this.noSwordT - dt);
+        if (attackPress && !this.armored) {                      // bez miecza (misja 3 przed podniesieniem): tylko wzruszenie ramion
+            if (this.noSwordT <= 0 && this.mode === 'run') { this.noSwordT = CFG.SWORD_PICKUP.NO_SWORD_MSG_CD; this.popup(this.a.x, this.a.y - 62, 'NO SWORD!', '#ff8a70'); }
+        } else if (attackPress && this.attackCd <= 0) {
             this.attackT = CFG.ATTACK_TIME;
             audioSfx('sword');
             this.attackCd = CFG.ATTACK_TIME + CFG.ATTACK_COOLDOWN;
@@ -1677,25 +1739,25 @@ class PlayScene extends Phaser.Scene {
 
         // --- wygląd Arka ---
         const sx = Math.round(a.x), sy = Math.round(a.y);
-        this.arek.setPosition(sx, sy + Math.round(this.arekDY)).setFlipX(this.facing < 0);
+        this.arek.setPosition(sx + Math.round(this.arekDX), sy + Math.round(this.arekDY)).setFlipX(this.facing < 0);
         const idle = (this.mode === 'arrive' || this.mode === 'bossend' || ((this.mode === 'boss' || this.mode === 'ending') && !this.heroMoving));
         let pose = 'run';
         let jumpTex = null;
         if (this.attackT > 0) pose = 'attack';
         else if (!a.onGround || this.jumpLandT > 0) {
-            if (this.jumpLandT > 0 && a.onGround) { pose = 'jump_land'; jumpTex = 'arek_jump_5'; }
-            else if (this.jumpCrouchT > 0) { pose = 'jump_crouch'; jumpTex = 'arek_jump_1'; }
-            else if (a.vy < -CFG.JUMP_APEX_VY) { pose = 'jump_rise'; jumpTex = 'arek_jump_2'; }
-            else if (a.vy > CFG.JUMP_APEX_VY) { pose = 'jump_fall'; jumpTex = 'arek_jump_4'; }
-            else { pose = 'jump_apex'; jumpTex = 'arek_jump_3'; }
+            if (this.jumpLandT > 0 && a.onGround) { pose = 'jump_land'; jumpTex = this.jumpKey(5); }
+            else if (this.jumpCrouchT > 0) { pose = 'jump_crouch'; jumpTex = this.jumpKey(1); }
+            else if (a.vy < -CFG.JUMP_APEX_VY) { pose = 'jump_rise'; jumpTex = this.jumpKey(2); }
+            else if (a.vy > CFG.JUMP_APEX_VY) { pose = 'jump_fall'; jumpTex = this.jumpKey(4); }
+            else { pose = 'jump_apex'; jumpTex = this.jumpKey(3); }
         } else if (idle) pose = 'idle';
         if (this.arekManual) pose = this.pose;          // finał: pozą Arka steruje sekwencja zakończenia
         if (pose !== this.pose) {
             this.pose = pose;
-            if (pose === 'run') this.arek.play('run');
+            if (pose === 'run') this.arek.play(this.runAnim());
             else {
                 this.arek.anims.stop();
-                this.arek.setTexture(jumpTex || { attack: 'arek_attack', idle: 'arek_run_2' }[pose] || 'arek_run_2');   // idle (arena): zwarta poza biegu, stopy na ziemi
+                this.arek.setTexture(jumpTex || { attack: 'arek_attack', idle: this.idleKey() }[pose] || this.idleKey());   // idle (arena): zwarta poza biegu, stopy na ziemi
             }
         }
         if (pose === 'run') {
@@ -1707,6 +1769,9 @@ class PlayScene extends Phaser.Scene {
         this.slash.setAlpha(Math.min(1, this.attackT / (CFG.ATTACK_TIME * 0.6)));
 
         // HUD przyspieszenia jest tylko kosmetyką: błąd w nim nie może zabić pętli update (wyjątek zatrzymuje cały RAF Phasera = zawieszona gra)
+        if (this.pickSword) this.drawPickArm();
+        if (this.iceSpr) this.iceSpr.setPosition(Math.round(a.x), Math.round(a.y));
+        if (this.swordHud && this.swordHud.ok.visible && this.clock > this.swordHud.okUntil) { this.swordHud.ok.setVisible(false); this.refreshHud(); }
         try { this.updateBoostHud(dt); } catch (e) { this.boostHud = null; if (window.console) console.warn('boostHud:', e); }
 
         // --- kamera i tło ---
@@ -1751,6 +1816,7 @@ class PlayScene extends Phaser.Scene {
         }
         this.updateHearts(body);
         this.updateBolts(body);
+        this.updateSwordItem();
         return this.state === 'play';
     }
 
@@ -2179,21 +2245,246 @@ class PlayScene extends Phaser.Scene {
         b.s.anims.stop(); b.s.setTexture('rafal_stand').clearTint().setAlpha(1);
         this.tweens.add({ targets: b.s, angle: -b.face * 85, duration: 450, ease: 'Quad.in' });
         this.time.delayedCall(450, () => { this.cameras.main.shake(100, 0.004); audioSfx('stomp'); });
-        this.time.delayedCall(700, () => this.popup(this.a.x, this.a.y - 70, 'MISSION 2 CLEAR!', '#ffffff'));
-        // Kamil nadjeżdża po Rafała: auto -> wysiada -> zabiera Rafała do auta -> auto po Fibi -> odjazd (carGrabsFibi) -> misja 3
-        this.time.delayedCall(500, () => {
+        this.time.delayedCall(250, () => this.popup(this.a.x, this.a.y - 70, 'MISSION 2 CLEAR!', '#ffffff'));
+        // Po zwycięstwie: zamrażający czar z prawej trafia Arka -> w tej samej stronie nadjeżdża Kamil po Rafała (+Fibi) i drwi
+        // -> odjeżdża w prawo -> piorun rozbija lód i zbroję (freezeShatter) -> misja 3 w T-shircie, bez miecza
+        this.afterCarLeaves = () => this.freezeShatter();
+        this.time.delayedCall(CFG.FREEZE.SPELL_DELAY * 1000, () => this.freezeSpell(b));
+    }
+
+    /** Szybki lodowy czar z prawej strony ekranu leci w Arka (nad Fibi). */
+    freezeSpell(rb) {
+        if (this.state !== 'play') return;
+        const F = CFG.FREEZE, a = this.a;
+        const x0 = this.camX + W + 24, y = a.y - 32;
+        const sp = this.add.sprite(x0, y, 'freeze_spell_1').setDepth(8).setFlipX(true);     // grafika ma grot w prawo, czar leci w lewo
+        sp.play('freeze_spell');
+        const glow = this.add.image(x0, y, 'cross_glow').setDepth(7.9).setTint(0x80d8ff).setBlendMode(Phaser.BlendModes.ADD).setScale(1.3);
+        audioSfx('freezecast');
+        const dur = (x0 - (a.x + 6)) / F.SPELL_SPEED * 1000;
+        this.tweens.add({
+            targets: sp, x: a.x + 6, duration: dur, ease: 'Linear',
+            onUpdate: () => {
+                glow.setPosition(sp.x, sp.y);
+                if (Math.random() < 0.8) {                                           // ślad z lodowych iskier
+                    const d = this.add.image(sp.x + 10, sp.y + Phaser.Math.Between(-5, 5), 'dot').setTint(0xcff0ff).setDepth(7.8);
+                    this.tweens.add({ targets: d, alpha: 0, x: d.x + 14, duration: 260, onComplete: () => d.destroy() });
+                }
+            },
+            onComplete: () => { sp.destroy(); glow.destroy(); this.freezeHit(rb); },
+        });
+    }
+    /** Trafienie: błysk, lód obejmuje Arka (arek_frozen), kontrola zablokowana. */
+    freezeHit(rb) {
+        if (this.state !== 'play') return;
+        const F = CFG.FREEZE, a = this.a;
+        this.frozen = true;
+        this.arekManual = true; this.pose = 'manual';
+        this.attackT = 0; this.slash.setVisible(false);
+        this.arek.anims.stop(); this.arek.setVisible(false);
+        const ice = this.iceSpr = this.add.sprite(Math.round(a.x), Math.round(a.y), 'arek_frozen').setOrigin(0.5, F.ORIGIN_FROZEN_Y).setDepth(6.4);
+        ice.setScale(1.25, 0.2); this.tweens.add({ targets: ice, scaleX: 1, scaleY: 1, duration: 220, ease: 'Back.out' });
+        this.cameras.main.flash(240, 170, 225, 255);
+        this.cameras.main.shake(180, 0.008);
+        audioSfx('freeze');
+        this.sparkle(a.x, a.y - 36, 22, [0xffffff, 0xbfe8ff, 0x70b8ff]);
+        this.popup(a.x, a.y - 96, 'FROZEN!', '#9fe0ff');
+        this.time.delayedCall(F.HOLD_BEFORE_CAR * 1000, () => this.rafalCarArrives(rb));
+    }
+    /** Kamil nadjeżdża z prawej (tej samej strony co czar) i staje obok Rafała. */
+    rafalCarArrives(rb) {
+        if (this.state !== 'play') return;
+        const F = CFG.FREEZE;
+        const info = this.carInfo = makeCar(this, CFG.INTRO_CAR_SCALE);
+        this.carHalf = info.half;
+        const car = this.car = this.add.sprite(this.camX + W + this.carHalf + 30, CFG.INTRO_CAR_BOTTOM, info.keys[0]).setOrigin(0.5, 1).setDepth(4.8).setFlipX(true);
+        car.play('car_drive_s');
+        this.carSnd = new CarSound({ ref: 300 });
+        const stopX = Phaser.Math.Clamp(rb.x + F.CAR_OFFSET, this.camX + W * 0.55, this.camX + W - 112);
+        const driveMs = 1500;
+        this.time.delayedCall(driveMs - 500, () => audioSfx('brake', 0.8));
+        this.tweens.add({
+            targets: car, x: stopX, duration: driveMs, ease: 'Quad.out',
+            onComplete: () => { car.anims.stop(); if (this.carSnd) { this.carSnd.stop(0.4); this.carSnd = null; } this.kamilFetchesRafal(rb); },
+        });
+    }
+    /** Dialog Kamila (portret + 2 kwestie po 2 linie, CFG.FREEZE.TEXT), potem cb(). */
+    kamilTaunt(cb) {
+        const F = CFG.FREEZE, lines = F.TEXT;
+        const d = 14, x = 52, y = 38, w = W - 104, h = 80;
+        const parts = [
+            this.add.rectangle(x, y, w, h, 0x8c1e14).setOrigin(0),
+            this.add.rectangle(x + 2, y + 2, w - 4, h - 4, 0xffd040).setOrigin(0),
+            this.add.rectangle(x + 4, y + 4, w - 8, h - 8, 0x1e163c).setOrigin(0),
+            this.add.rectangle(x + 8, y + 8, 64, 64, 0x3a2a5c).setOrigin(0),
+            this.add.image(x + 8, y + 8, 'kamil_portrait').setOrigin(0),
+            pxText(this, x + 84, y + 10, 'KS. KAMIL', { scale: 1, color: '#ffd040', shadow: '#3a1008', ox: 0 }),
+        ];
+        const t1 = pxText(this, x + 84, y + 28, lines[0][0], { scale: 2, color: '#ffffff', shadow: '#2a1040', ox: 0 });
+        const t2 = pxText(this, x + 84, y + 50, lines[0][1], { scale: 2, color: '#ffffff', shadow: '#2a1040', ox: 0 });
+        parts.push(t1, t2);
+        parts.forEach(o => o.setScrollFactor(0).setDepth(d));
+        audioSfx('slam', 0.4);
+        const T = F.DIALOG_LINE_TIME * 1000;
+        this.time.delayedCall(T, () => { t1.setString(lines[1][0]); t2.setString(lines[1][1]); audioSfx('haha'); });
+        this.time.delayedCall(T * 2, () => { parts.forEach(o => o.destroy()); cb(); });
+    }
+
+    /** Auto odjechało: niebo ciemnieje, piorun uderza w lód -> lód i zbroja rozpryskują się, Arek zostaje w T-shircie -> misja 3. */
+    freezeShatter() {
+        if (this.state !== 'play') return;
+        const F = CFG.FREEZE, a = this.a, G = CFG.GROUND_Y;
+        const dim = this.add.rectangle(0, 0, W, H, 0x0a0620, 1).setOrigin(0).setScrollFactor(0).setDepth(9.4).setAlpha(0);
+        this.time.delayedCall(F.STORM_DELAY * 1000, () => {
             if (this.state !== 'play') return;
-            const info = this.carInfo = makeCar(this, CFG.INTRO_CAR_SCALE);
-            this.carHalf = info.half;
-            const car = this.car = this.add.sprite(this.camX - this.carHalf - 30, CFG.INTRO_CAR_BOTTOM, info.keys[0]).setOrigin(0.5, 1).setDepth(4.8);
-            car.play('car_drive_s');
-            this.carSnd = new CarSound({ ref: 300 });
-            const stopX = this.camX + W * CFG.ARENA_CAR_STOP - 70;
-            const driveMs = 1500;
-            this.time.delayedCall(driveMs - 500, () => audioSfx('brake', 0.8));
-            this.tweens.add({
-                targets: car, x: stopX, duration: driveMs, ease: 'Quad.out',
-                onComplete: () => { car.anims.stop(); if (this.carSnd) { this.carSnd.stop(0.4); this.carSnd = null; } this.kamilFetchesRafal(b); },
+            this.tweens.add({ targets: dim, alpha: F.STORM_DIM, duration: F.STORM_TIME * 1000 });
+            audioSfx('charge', F.STORM_TIME);
+            if (this.iceSpr) this.tweens.add({ targets: this.iceSpr, scaleX: 1.02, duration: 60, yoyo: true, repeat: Math.floor(F.STORM_TIME * 1000 / 120) });   // lód drży
+            this.time.delayedCall(F.STORM_TIME * 1000, () => this.freezeStrike(dim));
+        });
+    }
+    freezeStrike(dim) {
+        if (this.state !== 'play') return;
+        const F = CFG.FREEZE, a = this.a, G = CFG.GROUND_Y, ice = this.iceSpr, T = F.SHATTER_FRAME_TIME * 1000;
+        const cam = this.cameras.main;
+        cam.flash(320, 255, 255, 255); cam.shake(520, 0.012);
+        audioSfx('thunder'); audioSfx('shatter');
+        const g = this.boltG = this.add.graphics().setDepth(18);
+        let n = 0;
+        this.time.addEvent({ delay: 60, repeat: 9, callback: () => { drawLightning(g, a.x, a.y - 74); n++; if (n >= 10) g.destroy(); } });
+        // lód: klatki kruszenia (to samo płótno i punkt zakotwiczenia co arek_frozen)
+        ['ice_shatter_1', 'ice_shatter_2', 'ice_shatter_3'].forEach((k, i) => this.time.delayedCall(T * i, () => { if (ice && ice.active) ice.setTexture(k); }));
+        // odłamki lodu lecą na boki i opadają
+        for (let i = 0; i < F.SHARDS; i++) {
+            const col = Phaser.Utils.Array.GetRandom([0xffffff, 0xcff0ff, 0x9fd8ff, 0x70b8ff]);
+            const p = this.add.image(a.x + Phaser.Math.Between(-22, 22), a.y - Phaser.Math.Between(6, 70), 'dot').setTint(col).setDepth(17).setScale(Phaser.Math.Between(1, 3));
+            this.tweens.add({ targets: p, x: p.x + Phaser.Math.Between(-90, 90), y: G + Phaser.Math.Between(0, 14), duration: 450 + Math.random() * 350, ease: 'Bounce.out',
+                onComplete: () => this.tweens.add({ targets: p, alpha: 0, delay: 500, duration: 500, onComplete: () => p.destroy() }) });
+        }
+        // zbroja: Arek w T-shircie wśród odlatujących części (armor_shatter_1..3)
+        this.time.delayedCall(T, () => {
+            this.arek.setTexture('arek_casual_stand').clearTint().setScale(1).setVisible(false);
+            const ar = this.add.sprite(Math.round(a.x), Math.round(a.y), 'armor_shatter_1').setOrigin(0.5, F.ORIGIN_ARMOR_Y).setDepth(6.6);
+            ['armor_shatter_2', 'armor_shatter_3'].forEach((k, i) => this.time.delayedCall(T * 1.4 * (i + 1), () => { if (ar.active) ar.setTexture(k); }));
+            audioSfx('sparkle', 0.5);
+            cam.flash(200, 255, 240, 180);
+            this.sparkle(a.x, a.y - 40, 26, [0xffd040, 0xffffff, 0xc08020, 0xa0a0b0]);
+            this.arekCasualReveal = ar;
+            // po chwili: sprite z częściami zbroi znika, zostaje zwykły Arek casual (ta sama poza i punkt stóp)
+            this.time.delayedCall(T * 4 + 450, () => {
+                this.arek.setVisible(true);
+                this.tweens.add({ targets: ar, alpha: 0, duration: 350, onComplete: () => ar.destroy() });
+                if (ice && ice.active) this.tweens.add({ targets: ice, alpha: 0, duration: 500, onComplete: () => { ice.destroy(); if (this.iceSpr === ice) this.iceSpr = null; } });
+                this.tweens.add({ targets: dim, alpha: 0, duration: 600, onComplete: () => dim.destroy() });
+                this.armored = false; this.frozen = false;
+                this.popup(a.x, a.y - 70, 'BRR!', '#ffffff');
+                this.shiver = F.SHIVER_TIME;
+                this.tweens.add({ targets: this, arekDX: 1, duration: 40, yoyo: true, repeat: Math.floor(F.SHIVER_TIME * 1000 / 80), onComplete: () => { this.arekDX = 0; } });
+                this.time.delayedCall(F.SHIVER_TIME * 1000, () => {
+                    if (this.state !== 'play') return;
+                    this.arekManual = false; this.pose = null; this.arek.setAlpha(1);
+                    this.refreshHud();
+                    this.startNextLevel();
+                });
+            });
+        });
+    }
+
+    /** Misja 3: miecz wbity w drogę (w połowie celu); dotyk -> scena podniesienia. */
+    updateSwordItem() {
+        if (this.armored || this.level !== 2) return;
+        const a = this.a, P = CFG.SWORD_PICKUP;
+        if (!this.swordItem && !this.swordSpawned && this.score >= this.L.goal * P.AT_FRAC) {
+            this.swordSpawned = true;
+            const x = Math.max(this.nextObstacleX, this.camX + W + P.AHEAD);
+            this.nextObstacleX = x + P.CLEAR_AFTER;
+            const glow = this.add.image(x, CFG.GROUND_Y - 26, 'cross_glow').setTint(0xffd860).setScale(2).setDepth(4.9).setBlendMode(Phaser.BlendModes.ADD);
+            const s = this.add.image(x, CFG.GROUND_Y + 2, 'sword_pickup').setOrigin(0.5, 1).setDepth(5);
+            this.tweens.add({ targets: glow, alpha: 0.35, duration: 420, yoyo: true, repeat: -1 });
+            this.tweens.add({ targets: glow, scale: 2.4, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+            this.swordItem = { s, glow, wx: x };
+            this.popup(this.camX + W / 2, 70, 'SWORD AHEAD!', '#ffe060');
+        }
+        const it = this.swordItem;
+        if (!it) return;
+        if (this.swordTouched) { if (a.onGround) this.startSwordPickup(); return; }
+        if (Math.abs(a.x - it.wx) < P.REACH + 8) this.swordTouched = true;
+        else if (it.wx < this.camX - 60) {              // minięty (np. cofnął się za bardzo) - pojawi się znowu przed Arkiem
+            this.tweens.killTweensOf(it.glow); it.s.destroy(); it.glow.destroy(); this.swordItem = null; this.swordSpawned = false;
+        }
+    }
+    drawPickArm() {                                       // ramię od barku do rękojeści uniesionego miecza
+        const g = this.pickG, sw = this.pickSword, a = this.a;
+        g.clear();
+        if (!sw.active) return;
+        const sx = a.x + 3, sy = a.y - 40 + this.arekDY, hx = sw.x, hy = sw.y;
+        g.fillStyle(0xd98f5e, 1);
+        for (let i = 0; i <= 24; i++) { const u = i / 24; g.fillRect(Math.round(sx + (hx - sx) * u) - 1, Math.round(sy + (hy - sy) * u) - 1, 3, 3); }
+    }
+    startSwordPickup() {
+        const P = CFG.SWORD_PICKUP, a = this.a, it = this.swordItem, G = CFG.GROUND_Y;
+        this.mode = 'pickup';
+        this.invuln = 99;
+        this.swordItem = null; this.swordTouched = false;
+        this.clearWorld(300);
+        this.arekManual = true; this.pose = 'manual'; this.facing = 1; this.attackT = 0;
+        this.arek.anims.stop(); this.arek.setTexture('arek_casual_jump_1').setFlipX(false);   // schyla się po miecz
+        audioSfx('shing');
+        this.tweens.killTweensOf(it.glow); this.tweens.add({ targets: [it.glow], alpha: 0, scale: 3.5, duration: 400, onComplete: () => it.glow.destroy() });
+        const sw = this.pickSword = this.add.image(it.wx, G - 4, 'sword').setOrigin(0.5, 0.85).setDepth(6.2).setAngle(180);
+        it.s.destroy();
+        this.pickG = this.add.graphics().setDepth(6.1);
+        const hand = { x: a.x + 9, y: a.y - 62 };
+        this.time.delayedCall(250, () => {
+            this.arek.setTexture('arek_casual_stand');
+            this.tweens.add({ targets: sw, x: hand.x, y: hand.y, angle: 0, duration: P.LIFT_TIME * 1000, ease: 'Sine.out' });
+        });
+        const tDim = 250 + P.LIFT_TIME * 1000;
+        const dim = this.add.rectangle(0, 0, W, H, 0x0a0620, 1).setOrigin(0).setScrollFactor(0).setDepth(9.4).setAlpha(0);
+        this.time.delayedCall(tDim, () => this.tweens.add({ targets: dim, alpha: P.DIM, duration: P.DIM_TIME * 1000 }));
+        const tCharge = tDim + (P.DIM_TIME + P.HOLD_TIME) * 1000;
+        this.time.delayedCall(tCharge, () => audioSfx('charge', P.CHARGE_TIME));
+        this.time.delayedCall(tCharge + P.CHARGE_TIME * 1000, () => this.swordStrike(dim));
+    }
+    swordStrike(dim) {
+        const P = CFG.SWORD_PICKUP, a = this.a, arek = this.arek, sw = this.pickSword, cam = this.cameras.main;
+        const tip = { x: sw.x + 1, y: sw.y - 36 };
+        cam.flash(300, 255, 255, 255); cam.shake(500, 0.012);
+        audioSfx('thunder'); audioSfx('sparkle', P.TRANSFORM_TIME * 0.5);
+        const g = this.boltG = this.add.graphics().setDepth(18);
+        let n = 0;
+        this.time.addEvent({ delay: 60, repeat: 9, callback: () => { drawLightning(g, tip.x, tip.y); n++; if (n >= 10) g.destroy(); } });
+        this.sparkle(tip.x, tip.y, 16, [0xffffff, 0xbfe0ff, 0x6a8cff]);
+        // przemiana: biała sylwetka miga między T-shirtem a zbroją (jak w intro)
+        arek.setTintFill(0xffffff);
+        let k = 0;
+        const flick = this.time.addEvent({ delay: 60, loop: true, callback: () => {
+            k++;
+            arek.setTexture(k % 2 ? 'arek_jump_2' : 'arek_casual_stand').setTintFill(0xffffff);
+            this.sparkle(a.x + Phaser.Math.Between(-14, 14), a.y - 30 + Phaser.Math.Between(-26, 26), 2, [0xffffff, 0xffd040, 0xfff0a0]);
+        } });
+        this.time.delayedCall(P.TRANSFORM_TIME * 1000, () => {
+            flick.remove();
+            audioSfx('reveal');
+            this.armored = true;
+            arek.setTexture('arek_jump_2').clearTint().setScale(1.18);                 // zbroja z uniesionym mieczem
+            this.pickSword = null; sw.destroy(); this.pickG.destroy(); this.pickG = null;
+            cam.flash(240, 255, 240, 180);
+            this.sparkle(a.x, a.y - 34, 30, [0xffd040, 0xffffff, 0xff7040]);
+            this.tweens.add({ targets: arek, scale: 1, duration: 260, ease: 'Back.out' });
+            this.tweens.add({ targets: dim, alpha: 0, duration: 700, onComplete: () => dim.destroy() });
+            this.popup(a.x, a.y - 96, 'ARMOR BACK!', '#ffe060');
+            if (this.swordHud) { this.swordHud.ok.setVisible(true); this.swordHud.okUntil = this.clock + 2.5; this.swordGotThisRun = true; }
+            this.refreshHud();
+            this.time.delayedCall(900, () => {                                          // wracamy do biegu - już w zbroi i z mieczem
+                if (this.state !== 'play') return;
+                this.arekManual = false; this.pose = null;
+                this.mode = 'run';
+                this.invuln = CFG.INVULN_TIME * 0.75;
+                this.spawning = true;
+                this.nextObstacleX = this.camX + W + 160;
+                this.sinceHeart = 0;
+                this.scrollCur = 0;
             });
         });
     }
@@ -2205,7 +2496,7 @@ class PlayScene extends Phaser.Scene {
         audioSfx('slam');
         car.setTexture(this.carInfo.emptyKeys[0]);                             // kierowca wysiadł
         this.tweens.add({ targets: car, y: car.y - 2, duration: 80, yoyo: true, repeat: 1 });
-        this.tweens.add({ targets: k, alpha: 1, y: G - 14, duration: 160, yoyo: true, onComplete: () => { k.y = G; } });
+        this.tweens.add({ targets: k, alpha: 1, y: G - 14, duration: 160, yoyo: true, onComplete: () => { k.y = G; k.setAlpha(1); } });   // yoyo wracało do alpha 0 - Kamil był niewidzialny
         this.time.delayedCall(350, () => {
             if (this.state !== 'play') return;
             const dist = Math.abs(rb.x - k.x);
@@ -2215,14 +2506,14 @@ class PlayScene extends Phaser.Scene {
                 onComplete: () => {
                     k.anims.stop(); k.setTexture('kamil_stand');
                     this.bubbleAt(k.x, G - 80, '!', '#ff5050');
-                    this.time.delayedCall(260, () => {
+                    this.time.delayedCall(260, () => this.kamilTaunt(() => {
                         k.setFlipX(car.x < k.x); k.play('kamil_walk');
                         const dur = Phaser.Math.Clamp(Math.abs(k.x - car.x) / 0.3, 300, 900);
                         this.tweens.add({ targets: rb.s, x: car.x + 6, duration: dur, ease: 'Linear' });     // ciągnie Rafała po ziemi
                         this.tweens.add({ targets: rb.s, alpha: 0, delay: dur - 260, duration: 260 });
                         this.tweens.add({ targets: k, x: car.x, duration: dur, ease: 'Linear',
                             onComplete: () => { rb.s.destroy(); this.kamilIntoCar(); } });
-                    });
+                    }));
                 },
             });
         });
@@ -2468,6 +2759,7 @@ class PlayScene extends Phaser.Scene {
     }
     carGrabsFibi() {
         const car = this.car, fibi = this.fibi;
+        car.setFlipX(false);                                                  // po stronie Rafała auto stało przodem w lewo - zawraca i jedzie w prawo
         car.play('car_drive_s');
         this.carSnd = new CarSound({ ref: 300 });
         this.time.delayedCall(450, () => audioSfx('brake', 0.55));            // hamuje przy Fibi
@@ -2486,8 +2778,12 @@ class PlayScene extends Phaser.Scene {
                         let started = false;
                         this.tweens.add({
                             targets: car, x: out, duration: 2000, ease: 'Quad.in',
-                            onUpdate: () => { if (!started && car.x > this.camX + W - this.carHalf) { started = true; this.startNextLevel(); } },
-                            onComplete: () => { car.destroy(); this.car = null; if (this.carSnd) { this.carSnd.stop(0.25); this.carSnd = null; } },
+                            onUpdate: () => { if (!this.afterCarLeaves && !started && car.x > this.camX + W - this.carHalf) { started = true; this.startNextLevel(); } },
+                            onComplete: () => {
+                                car.destroy(); this.car = null; if (this.carSnd) { this.carSnd.stop(0.25); this.carSnd = null; }
+                                const cb = this.afterCarLeaves; this.afterCarLeaves = null;
+                                if (cb) cb();                                  // po Rafale: zamiast od razu misji 3 - piorun rozbija lód (freezeShatter)
+                            },
                         });
                     },
                 });
@@ -2500,6 +2796,8 @@ class PlayScene extends Phaser.Scene {
         this.level += 1;
         this.L = this.levelParams(this.level);
         this.mode = 'run';
+        this.pose = null;                   // wymusza odświeżenie animacji (np. po zmianie zbroi na T-shirt)
+        this.swordGotThisRun = false;
         this.final = false;
         this.bossKind = null;
         this.knockVx = 0;
@@ -2662,7 +2960,7 @@ class PlayScene extends Phaser.Scene {
         this.freezeRun();
         audioPlay('gameover');
         this.arek.anims.stop();
-        this.arek.setTexture('arek_jump_4').setTint(0xff6060).setAlpha(1);
+        this.arek.setTexture(this.jumpKey(4)).setTint(0xff6060).setAlpha(1);
         this.slash.setVisible(false);
         this.tweens.add({ targets: this.arek, y: this.arek.y - 24, angle: 90, alpha: 0.7, duration: 500, ease: 'Quad.out' });
         this.time.delayedCall(550, () => this.openScoreEntry());

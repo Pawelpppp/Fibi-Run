@@ -45,6 +45,14 @@ RAFAL_KASTET = ['rafal_dres_kastet', 'rafal_dres_kastet_spin_1', 'rafal_dres_kas
 RAFAL_KASTET_SCALE = 0.85   # kastet w grze: 30 px -> ~26 px
 RAFAL_PORTRAIT = os.path.join(ROOT, 'assets', 'portraits', 'rafal_dres_portrait_front.png')
 RAFAL_PORTRAIT_GAME = 64    # portret w ramce dialogowej (px)
+KAMIL_PORTRAIT = os.path.join(ROOT, 'assets', 'portraits', 'ksiadz_kamil_portrait_front.png')
+# --- grafiki sceny zamrożenia po Rafale (misja 2) i odzyskania miecza (misja 3) ---
+FREEZE_FROZEN = 'arek_frozen'                                  # Arek w bryle lodu (221x228, lód półprzezroczysty)
+FREEZE_ICE = [f'ice_shatter_{i}' for i in range(1, 4)]         # kruszenie lodu (3 klatki, ta sama płótno 221x228 i pozycja bryły co arek_frozen)
+FREEZE_ARMOR = [f'armor_shatter_{i}' for i in range(1, 4)]     # Arek casual wśród lecących części zbroi (264x232)
+FREEZE_SPELL = [f'freeze_spell_{i}' for i in range(1, 3)]      # pocisk czaru (32x25, grot zwrócony w PRAWO; w grze flipX - leci w lewo)
+SWORD_PICKUP = 'sword_pickup'                                  # miecz wbity w ziemię (40x98, dół = ziemia)
+FREEZE_SPELL_SCALE = 0.75   # pocisk jest mały - skala większa niż klatek biegu
 DOG_H_GAME = 28        # wysokość Fibi w grze (px) - wyraźnie mniejsza od Arka (64 px)
 DOG_FRAMES = ['fibi_walk_1', 'fibi_walk_2', 'fibi_stand']
 FACE_SRC = os.path.join(ROOT, 'assets', 'portraits', 'fibi_portrait_front.png')   # portret Fibi na ekranie powitalnym
@@ -253,6 +261,8 @@ def main():
     process_kamil()
     process_kamil_laugh()
     process_rafal()
+    process_kamil_portrait()
+    process_freeze_art()
     copy_car()
     process_dog()
     write_bundle()
@@ -385,6 +395,84 @@ def process_rafal():
     frame.paste(rgb, (x0, y0)); fm[y0:y0 + sh, x0:x0 + sw] = mask
     quantize([(frame, fm)], 48)[0].save(os.path.join(OUT, 'rafal_portrait.png'))
     print('rafal portrait', sw, 'x', sh)
+
+
+def _save_group(names, imgs):
+    for n, im in zip(names, imgs):
+        im.save(os.path.join(OUT, n + '.png'))
+        print('  %-18s %dx%d' % (n, im.width, im.height))
+
+
+def _fit(img, scale):
+    sw, sh = max(1, round(img.width * scale)), max(1, round(img.height * scale))
+    return to_game(img, (sw, sh))
+
+
+def _canvas_rgba(names, scale, keep_alpha):
+    """Zmniejsza CAŁE płótno (bez przycinania do bbox: pozycja na płótnie = punkt zakotwiczenia w grze).
+    keep_alpha=True zachowuje półprzezroczystość (lód); inaczej alfa binarna jak u reszty sprite'ów.
+    Wspólna paleta dla zestawu. Zwraca listę RGBA."""
+    out_items, alphas = [], []
+    for n in names:
+        im = Image.open(os.path.join(ARCHIVE_DIR, n + '.png')).convert('RGBA')
+        sw, sh = max(1, round(im.width * scale)), max(1, round(im.height * scale))
+        a = np.array(im).astype(float)
+        al = a[..., 3:] / 255.0
+        pm = Image.fromarray((a[..., :3] * al).astype('uint8'), 'RGB').resize((sw, sh), Image.BOX)
+        alpha = np.array(Image.fromarray((al[..., 0] * 255).astype('uint8')).resize((sw, sh), Image.BOX)).astype(float)
+        av = alpha / 255.0
+        rgb = np.clip(np.where(av[..., None] > 0, np.array(pm).astype(float) / np.maximum(av[..., None], 1e-3), 0), 0, 255).astype('uint8')
+        if keep_alpha:
+            mask = av > 0.08
+            alphas.append(np.where(mask, alpha, 0).astype('uint8'))
+        else:
+            mask = av > 0.5
+            alphas.append((mask * 255).astype('uint8'))
+        out_items.append((Image.fromarray(rgb, 'RGB'), mask))
+    res = []
+    for q, al in zip(quantize(out_items, 48), alphas):
+        arr = np.array(q); arr[..., 3] = al
+        res.append(Image.fromarray(arr, 'RGBA'))
+    return res
+
+
+def armor_scale():
+    """Skala klatek biegu w zbroi (arek_run6_*), ta sama co w process_armor_anims."""
+    hs = [load_sprite(n).height for n in ARMOR_RUN6]
+    return FRAME_H_GAME / float(np.median(hs))
+
+
+def casual_scale():
+    """Skala klatek Arka casual (ta sama co w process_casual)."""
+    return CASUAL_H_GAME / max(load_sprite(n).height for n in CASUAL_RUN6 + CASUAL_STAND)
+
+
+def process_freeze_art():
+    """Scena zamrożenia (misja 2) i miecza (misja 3) -> assets/game/.
+      arek_frozen, ice_shatter_1..3: skala klatek biegu w zbroi (armor_scale), całe płótno 221x228, lód półprzezroczysty;
+      armor_shatter_1..3: skala Arka casual (casual_scale) - w płótnie stoi Arek w T-shircie, więc po podmianie jest tak samo duży jak w biegu;
+      freeze_spell_1..2: FREEZE_SPELL_SCALE; sword_pickup: armor_scale.
+    Punkty zakotwiczenia (stopy/dół bryły na ziemi) są w CFG.FREEZE.ORIGIN_* w game.js (ułamek wysokości płótna)."""
+    sa, sc = armor_scale(), casual_scale()
+    print('freeze: scale armor %.4f casual %.4f' % (sa, sc))
+    _save_group([FREEZE_FROZEN] + FREEZE_ICE, _canvas_rgba([FREEZE_FROZEN] + FREEZE_ICE, sa, True))
+    _save_group(FREEZE_ARMOR, _canvas_rgba(FREEZE_ARMOR, sc, False))
+    _save_group(FREEZE_SPELL, _canvas_rgba(FREEZE_SPELL, FREEZE_SPELL_SCALE, False))
+    _save_group([SWORD_PICKUP], _canvas_rgba([SWORD_PICKUP], sa, False))
+
+
+def process_kamil_portrait():
+    """Portret Kamila do okienka dialogowego (scena po pokonaniu Rafała) -> assets/game/kamil_portrait.png (64x64)."""
+    im = Image.open(KAMIL_PORTRAIT).convert('RGBA')
+    im = im.crop(bbox(im))
+    sc = RAFAL_PORTRAIT_GAME / float(max(im.size))
+    rgb, mask = _fit(im, sc)
+    S = RAFAL_PORTRAIT_GAME
+    frame = Image.new('RGB', (S, S)); fm = np.zeros((S, S), bool)
+    x0, y0 = (S - rgb.width) // 2, S - rgb.height
+    frame.paste(rgb, (x0, y0)); fm[y0:y0 + rgb.height, x0:x0 + rgb.width] = mask
+    quantize([(frame, fm)], 48)[0].save(os.path.join(OUT, 'kamil_portrait.png'))
+    print('kamil portrait', rgb.size)
 
 
 def process_dog():

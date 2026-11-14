@@ -15,7 +15,7 @@
      unlock()            - odblokowanie po pierwszym geście (klik / klawisz / dotyk)
      play(nazwa)         - title | intro | level | level2 | boss | finalboss | fury | victory | credits | gameover
      stop(fade)          - cisza (krótkie wyciszenie)
-     sfx(nazwa, opcje)   - jump | sword | hurt | kill | heart | bossHit | cross | punch | throw | clang | carHit | explosion | rush | stomp | click
+     sfx(nazwa, opcje)   - jump | sword | freezecast | freeze | shatter | shing | hurt | kill | heart | bossHit | cross | punch | throw | clang | carHit | explosion | rush | stomp | click
                            transformacja: charge(czas s) | thunder | sparkle(czas s) | reveal   (lightning = thunder)
                            auto: brake | slam
                            utrata życia: lifelost (smutna puzonowa gama wah-wah-wah-waaah, ~1 s) | haha (śmiech Kamila, 3x staccato)
@@ -584,6 +584,38 @@
         noiseHit(eng, bus, t + 1.0, 1.3, 0.3, 'lowpass', 300, 45, 0.7, 0.1);
         tone(eng, bus, t, 'sine', 64, 26, 1.9, 0.6, 0.03);                                           // sub
     }
+    function sfxFreezeCast(eng, bus, t) {                               // szybki lodowy czar: świst w górę + syk
+        tone(eng, bus, t, 'sawtooth', 2400, 480, 0.34, 0.08);
+        tone(eng, bus, t, 'square', 3200, 900, 0.3, 0.05);
+        noiseHit(eng, bus, t, 0.34, 0.2, 'bandpass', 6500, 1500, 1.6);
+    }
+    function sfxFreeze(eng, bus, t) {                                   // trafienie: trzask lodu + kryształowy dzwonek + opadające zamarzanie
+        const c = eng.ctx;
+        noiseHit(eng, bus, t, 0.22, 0.4, 'highpass', 5200, 0, 0.7);
+        kick(eng, bus, t, 0.6);
+        tone(eng, bus, t, 'sine', 900, 140, 0.45, 0.22);
+        [2637, 3136, 3951, 4699].forEach((f, i) => {
+            const tt = t + 0.03 + i * 0.05;
+            tone(eng, bus, tt, 'sine', f, 0, 0.5, 0.09, 0.003);
+            tone(eng, bus, tt, 'triangle', f * 2.01, 0, 0.25, 0.04, 0.003);
+        });
+        noiseHit(eng, bus, t + 0.12, 0.7, 0.14, 'bandpass', 4200, 2200, 3);
+    }
+    function sfxShatter(eng, bus, t) {                                  // rozbicie lodu i zbroi: szkło + metal + grzmot
+        for (let i = 0; i < 9; i++) {
+            const tt = t + i * 0.035 + Math.random() * 0.02;
+            noiseHit(eng, bus, tt, 0.07 + Math.random() * 0.05, 0.28, 'bandpass', 3500 + Math.random() * 5000, 0, 6);
+            tone(eng, bus, tt, 'sine', 2800 + Math.random() * 3200, 0, 0.16, 0.06);
+        }
+        noiseHit(eng, bus, t, 0.5, 0.45, 'highpass', 4000, 0, 0.6);
+        [1300, 1750, 2100].forEach((f, i) => tone(eng, bus, t + 0.08 + i * 0.07, 'square', f, f * 0.72, 0.2, 0.05));   // metal zbroi
+        kick(eng, bus, t, 0.8);
+    }
+    function sfxShing(eng, bus, t) {                                    // wyciągnięcie miecza z ziemi
+        noiseHit(eng, bus, t, 0.45, 0.22, 'highpass', 2500, 7500, 2);
+        tone(eng, bus, t, 'triangle', 1900, 3600, 0.4, 0.09);
+        [2093, 2637, 3136].forEach((f, i) => tone(eng, bus, t + 0.25 + i * 0.07, 'sine', f, 0, 0.35, 0.08, 0.003));
+    }
     function sfxSparkle(eng, bus, t, dur) {                             // błyszczące arpeggio w górę (pentatonika E-dur)
         const sc = [76, 79, 83, 86, 88, 91, 95, 98, 100, 103], n = Math.max(3, Math.round(dur / 0.055));
         for (let i = 0; i < n; i++) {
@@ -734,6 +766,10 @@
             case 'click': sweep(null, 900, 700, 0.05, 0.1, 0.5); break;
             case 'charge': sfxCharge(eng, bus, t, o.dur || 1.2); break;
             case 'lightning': case 'thunder': sfxThunder(eng, bus, t); break;
+            case 'freezecast': sfxFreezeCast(eng, bus, t); break;
+            case 'freeze': sfxFreeze(eng, bus, t); break;
+            case 'shatter': sfxShatter(eng, bus, t); break;
+            case 'shing': sfxShing(eng, bus, t); break;
             case 'sparkle': sfxSparkle(eng, bus, t, o.dur || 0.5); break;
             case 'reveal': sfxReveal(eng, bus, t); break;
             case 'brake': sfxBrake(eng, bus, t, o.dur || 0.75); break;
