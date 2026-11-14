@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Hook git: wpisuje version.js numerem nadchodzącego commita i dodaje plik do indeksu.
+set -euo pipefail
+ROOT=$(git rev-parse --show-toplevel)
+"$ROOT/tools/write_version.sh" --pre-commit
+git add -- "$ROOT/version.js"

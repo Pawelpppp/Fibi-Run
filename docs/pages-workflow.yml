@@ -1,0 +1,50 @@
+# Wdraża grę na GitHub Pages i wpisuje version.js (1.N = liczba commitów na master).
+# Numer jest zapisywany tylko w artefakcie wdrożenia — CI nie robi dodatkowego commita.
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Write version.js
+        run: |
+          N=$(git rev-list --count HEAD)
+          SHA=$(git rev-parse --short HEAD)
+          printf "window.FIBI_VERSION='1.%s';\nwindow.FIBI_VERSION_SHA='%s';\n" "$N" "$SHA" > version.js
+          echo "Version 1.${N} (${SHA})"
+          # Historia git nie powinna trafić na stronę
+          rm -rf .git
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: .
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

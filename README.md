@@ -169,6 +169,14 @@ CORS dopuszcza tylko **`https://pawelpppp.github.io`** oraz **`http://localhost`
 
 Opcjonalnie zamiast Azure można ustawić [Supabase](https://supabase.com): wyczyść `API_URL` i wklej `SUPABASE_URL` oraz `SUPABASE_ANON_KEY` (schemat w `docs/supabase-scores.sql`). `API_URL` ma pierwszeństwo, gdy oba są wypełnione.
 
+## Wersjonowanie
+
+Gra pokazuje numer wersji w prawym górnym rogu ekranu tytułowego, w formacie **v1.N**. **N** to łączna liczba commitów na gałęzi `master` (`git rev-list --count HEAD`). Numer ma rosnąć automatycznie po każdym commicie.
+
+**Docelowo (GitHub Actions):** workflow `.github/workflows/pages.yml` przy wdrażaniu strony wylicza N, wpisuje `version.js` tylko do artefaktu (z krótkim hashem w `window.FIBI_VERSION_SHA`) i wdraża GitHub Pages. CI **nie** dodaje dodatkowego commita, więc nie powstaje pętla wdrożeń. Gotowy plik workflow jest w [`docs/pages-workflow.yml`](docs/pages-workflow.yml) — wystarczy skopiować go do `.github/workflows/pages.yml` (push tego pliku wymaga zakresu `workflow` w tokenie GitHub) i w ustawieniach repozytorium ustawić źródło Pages na **GitHub Actions**.
+
+**Teraz (zapasowo):** `version.js` w repozytorium ma aktualny numer 1.N i jest serwowany razem z grą. Przed commitem aktualizuje go hook `tools/pre-commit` (instalacja w klonie: `bash tools/install-version-hook.sh`). Ręcznie: `bash tools/write_version.sh`. Na [GitHub Pages](https://pawelpppp.github.io/Fibi-Run/) widać ten plik także pod adresem [version.js](https://pawelpppp.github.io/Fibi-Run/version.js).
+
 ## Tech stack
 
 - **Phaser 3.80.1** (CDN jsDelivr), czysty **JavaScript** (`game.js`, `audio.js`, `leaderboard.js`), **HTML5** (`index.html`)
@@ -190,8 +198,13 @@ index.html              # strona, CDN Phaser, podpowiedź "obróć telefon"
 game.js                 # cała gra: CFG, tekstury, sceny Boot/Title/Intro/Play/Board
 audio.js                # muzyka chiptune i efekty (Web Audio), przycisk/klawisz mute
 leaderboard.js          # tablica wyników: Azure Function (API_URL) + localStorage, opcjonalnie Supabase
+version.js              # window.FIBI_VERSION = 1.N (N = liczba commitów; aktualizowane hookiem / write_version.sh)
+docs/pages-workflow.yml # docelowy workflow Pages (skopiować do .github/workflows/pages.yml, gdy token ma zakres workflow)
 docs/supabase-scores.sql # schemat tabeli scores i polityki RLS (wspólna tablica)
 tools/process_assets.py # przetwarzanie oryginalnych grafik -> assets/game + assets.js
+tools/write_version.sh  # lokalne wyliczenie 1.N z liczby commitów
+tools/pre-commit        # hook git: wpisuje wersję przed commitem
+tools/install-version-hook.sh  # instalacja hooka w klonie
 tools/test_*.py         # testy Playwright (menu, błyskawica, scena zamrożenia i miecz); API tablicy mockowane
 assets/
 ├── sprites/            # oryginały (Arek, Kamil, auto, Fibi, casual) + podglądy *_x4.png
@@ -245,7 +258,7 @@ Szczegóły: wiki → *Assety i grafiki*.
 - Wartości punktów potworków i balans trudności są tymczasowe.
 - Porażka w biegu (przed areną bossa, także w misji 3 przed lub po podniesieniu miecza) restartuje grę od misji 1 w zbroi; checkpoint działa tylko w arenie bossa (po wejściu do areny, np. po przegranej z Rafałem wracasz od razu do jego areny).
 
-**Zrobione:** ekran tytułowy, intro z transformacją, misje 1–6 (biegi + bossowie: Rafał, Kamil, finałowy Kamil; misja 5 zastępcza), scena po Rafale (zamrożenie, Kamil, piorun, T-shirt), miecz do podniesienia w misji 3 (piorun przywraca zbroję), błyskawica przyspieszająca ekran, Kamil „HA HA” i dźwięk utraty życia, wspólna tablica wyników na Azure, mocniejszy bas w muzyce, parametr `?mission=N`, finałowy boss (auto do zniszczenia, szał), zakończenie z piorunem i napisem WYGRAŁEŚ!, ekran KONIEC GRY, muzyka chiptune + przycisk mute (M), sterowanie dotykowe, animacja biegu (6 klatek) i skoku (5 faz), checkpoint w arenie bossa.
+**Zrobione:** wersjonowanie v1.N (liczba commitów, ekran tytułowy), ekran tytułowy, intro z transformacją, misje 1–6 (biegi + bossowie: Rafał, Kamil, finałowy Kamil; misja 5 zastępcza), scena po Rafale (zamrożenie, Kamil, piorun, T-shirt), miecz do podniesienia w misji 3 (piorun przywraca zbroję), błyskawica przyspieszająca ekran, Kamil „HA HA” i dźwięk utraty życia, wspólna tablica wyników na Azure, mocniejszy bas w muzyce, parametr `?mission=N`, finałowy boss (auto do zniszczenia, szał), zakończenie z piorunem i napisem WYGRAŁEŚ!, ekran KONIEC GRY, muzyka chiptune + przycisk mute (M), sterowanie dotykowe, animacja biegu (6 klatek) i skoku (5 faz), checkpoint w arenie bossa.
 
 **Do zrobienia:** docelowe grafiki potworków/beczek/tła, dopracowanie balansu i dźwięku.
 
