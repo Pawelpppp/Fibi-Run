@@ -4,9 +4,10 @@
    Oryginalna kompozycja w duchu 16-bitowych gier akcji (SNES / Genesis):
    - lead: dwa lekko rozstrojone "pulsy" z prawdziwą modulacją wypełnienia (PWM) i vibrato,
      echo (delay z sprzężeniem) na leadzie, harmonia w tercję, podwojenie oktawą w szale
-   - arpeggia akordów (pulse 12,5 %), bas (pulse + sub-trójkąt, skoki oktawowe), "stabsy" akordowe
+   - arpeggia akordów (pulse 12,5 %), bas (pulse + sub-trójkąt + osobna warstwa sine oktawę niżej, filtrowana), "stabsy" akordowe
    - perkusja: stopa / werbel / hi-haty / toms / crash (szum + obwiednie wysokości)
    - budowa utworu: intro / A / B / mostek / powtórki z fillami (zamiast krótkiej pętli)
+   - na szynie muzyki: półka basowa (~+5 dB poniżej 150 Hz) i lekkie "sidechain" suba pod stopę; SFX bez zmian
    - kompresor + limiter na wyjściu (bez przesterowań)
    Działa z file:// i http. Wszystko proceduralne.
 
@@ -107,7 +108,7 @@
         B('D#6 - - - F#6 - - - B6 - - - . . . .'),
     ];
     const LEVEL = {
-        bpm: 152, loopFrom: 1, leadVol: 0.15, duty: 0.25, arpVol: 0.05, bassVol: 0.22, stabVol: 0.06, drumVol: 1, echo: 0.36,
+        bpm: 152, loopFrom: 1, leadVol: 0.15, duty: 0.25, arpVol: 0.05, bassVol: 0.26, stabVol: 0.06, drumVol: 1, echo: 0.36,
         order: ['intro', 'A', 'A2', 'B', 'bridge', 'B2'],
         sec: {
             intro: { prog: B('Em Em C B7'), arp: 'run', bass: 'r . . . r . . . r . . . r . . .', drums: 'half', fill: 'fillA', stab: null },
@@ -149,7 +150,7 @@
         B('A6 - - . . . . . . . . . . . . .'),
     ];
     const BOSS = {
-        bpm: 176, loopFrom: 1, leadVol: 0.15, duty: 0.25, arpVol: 0.055, bassVol: 0.25, stabVol: 0.075, drumVol: 1.1, echo: 0.3,
+        bpm: 176, loopFrom: 1, leadVol: 0.15, duty: 0.25, arpVol: 0.055, bassVol: 0.29, stabVol: 0.075, drumVol: 1.1, echo: 0.3,
         order: ['intro', 'A', 'B', 'A2', 'bridge', 'B2'],
         sec: {
             intro: { prog: B('Dm Dm'), arp: 'run', bass: 'r r o r r r o r r r o r r o r o', drums: 'boss', fill: 'roll', stab: 'x.....x.x.....x.' },
@@ -187,7 +188,7 @@
         B('B5 - - G#5 - E5 - G#5 B5 - . . E5 . . .'),
     ];
     const TITLE = {
-        bpm: 116, loopFrom: 1, leadVol: 0.15, duty: 0.25, arpVol: 0.05, bassVol: 0.2, stabVol: 0.05, drumVol: 0.85, echo: 0.4,
+        bpm: 116, loopFrom: 1, leadVol: 0.15, duty: 0.25, arpVol: 0.05, bassVol: 0.24, stabVol: 0.05, drumVol: 0.85, echo: 0.4,
         order: ['intro', 'A', 'A2', 'B'],
         sec: {
             intro: { prog: B('Am E'), arp: 'slow', bass: 'r . . . . . . . r . . . . . . .', drums: null },
@@ -206,7 +207,7 @@
         B('D#5 - - - F#5 - - - A5 - - - B5 - - -'),
     ];
     const INTRO = {
-        bpm: 92, loopFrom: 0, leadVol: 0.12, duty: 0.5, leadWave: 'triangle', arpVol: 0.09, arpWave: 'triangle', bassVol: 0.14, drumVol: 1, echo: 0.45,
+        bpm: 92, loopFrom: 0, leadVol: 0.12, duty: 0.5, leadWave: 'triangle', arpVol: 0.09, arpWave: 'triangle', bassVol: 0.18, drumVol: 1, echo: 0.45,
         order: ['A'],
         sec: { A: { prog: B('Em C D B7'), lead: I_L, arp: 'slow', bass: 'r . . . . . . . . . . . . . . .', drums: null } },
     };
@@ -222,7 +223,7 @@
         B('C7 - - - - - - - - - - - . . . .'),
     ];
     const VICTORY = {
-        bpm: 132, loop: false, next: 'credits', leadVol: 0.16, duty: 0.5, arpVol: 0.05, bassVol: 0.2, stabVol: 0.07, drumVol: 0.95, echo: 0.3,
+        bpm: 132, loop: false, next: 'credits', leadVol: 0.16, duty: 0.5, arpVol: 0.05, bassVol: 0.24, stabVol: 0.07, drumVol: 0.95, echo: 0.3,
         order: ['V'],
         sec: { V: { prog: B('C F G C F G C'), lead: V_L, arp: 'up', bass: 'r . . r r . . r r . . r r . r .', drums: 'march', fill: 'roll', crash: true,
                     stab: 'x.....x.x.....x.', harm: true } },
@@ -240,7 +241,7 @@
         B('D6 - - - B5 - G5 - D6 - - - . . . .'),
     ];
     const CREDITS = {
-        bpm: 100, loopFrom: 0, leadVol: 0.13, duty: 0.5, leadWave: 'triangle', arpVol: 0.07, bassVol: 0.17, drumVol: 0.6, echo: 0.5,
+        bpm: 100, loopFrom: 0, leadVol: 0.13, duty: 0.5, leadWave: 'triangle', arpVol: 0.07, bassVol: 0.21, drumVol: 0.6, echo: 0.5,
         order: ['A', 'B'],
         sec: {
             A: { prog: B('C Am F G'), lead: C_L1, arp: 'slow', bass: 'r . . . . . r . r . . . . . . .', drums: null },
@@ -248,7 +249,7 @@
         },
     };
     const OVER = {
-        bpm: 76, loop: false, leadVol: 0.16, duty: 0.25, arpVol: 0, bassVol: 0.2, drumVol: 1, echo: 0.5,
+        bpm: 76, loop: false, leadVol: 0.16, duty: 0.25, arpVol: 0, bassVol: 0.24, drumVol: 1, echo: 0.5,
         order: ['A'],
         sec: { A: { prog: B('Am Dm Am'), lead: [B('A5 - - - G5 - - - F5 - - - E5 - - -'), B('D5 - - - C5 - - - A4 - - - - - - -'), B('A4 - - - - - - - - - - - - - - -')],
                     bass: 'r . . . . . . . . . . . . . . .', drums: null, arp: null } },
@@ -362,7 +363,16 @@
         return { input, master };
     }
 
-    /** Szyna utworu: lead (+echo), harmonia, arpeggio, bas, stabsy, perkusja. */
+    /** Szyna muzyki: głośność + półka basowa (nie dotyczy SFX). */
+    function makeMusicBus(ctx, dest) {
+        const bus = ctx.createGain(); bus.gain.value = 0.55;
+        const shelf = ctx.createBiquadFilter(); shelf.type = 'lowshelf'; shelf.frequency.value = 150; shelf.gain.value = 5;
+        bus.connect(shelf); shelf.connect(dest);
+        bus._shelf = shelf;
+        return bus;
+    }
+
+    /** Szyna utworu: lead (+echo), harmonia, arpeggio, bas, sub, stabsy, perkusja. */
     function makeTrackGraph(ctx, eng, out, song) {
         const g = {};
         const echoIn = ctx.createGain();
@@ -378,9 +388,11 @@
         g.harm = ctx.createGain(); { const p = eng.pan(-0.4); chain(...[g.harm, p, out].filter(Boolean)); send(g.harm, song.echo * 0.6); }
         g.arp = ctx.createGain(); { const p = eng.pan(0.4); chain(...[g.arp, p, out].filter(Boolean)); send(g.arp, song.echo * 0.5); }
         g.bass = ctx.createGain(); g.bass.connect(out);
+        g.sub = ctx.createGain(); g.sub.gain.value = 1;
+        const subLp = biq(ctx, 'lowpass', 160, 0.65); g.sub.connect(subLp); subLp.connect(out);
         g.stab = ctx.createGain(); { const p = eng.pan(-0.25); chain(...[g.stab, biq(ctx, 'lowpass', 4200), p, out].filter(Boolean)); }
         g.drum = ctx.createGain(); g.drum.connect(out);
-        g.dispose = () => { [g.lead, g.harm, g.arp, g.bass, g.stab, g.drum, echoIn, dly, fb, fbf, echoOut].forEach(n => { try { n.disconnect(); } catch (e) { /* ok */ } }); };
+        g.dispose = () => { [g.lead, g.harm, g.arp, g.bass, g.sub, subLp, g.stab, g.drum, echoIn, dly, fb, fbf, echoOut].forEach(n => { try { n.disconnect(); } catch (e) { /* ok */ } }); };
         return g;
     }
 
@@ -431,14 +443,29 @@
         o.type = type; o.frequency.value = mtof(m);
         adsr(g, t, vol, 0.8, dur, 0.01, 0.1, 0.12); o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + 0.2);
     }
-    function bassNote(eng, bus, t, m, dur, vol) {
+    function bassNote(eng, bus, t, m, dur, vol, subBus) {
         const c = eng.ctx, f = biq(c, 'lowpass', 2600, 1.2);
         f.frequency.setValueAtTime(2600, t); f.frequency.exponentialRampToValueAtTime(650, t + 0.12);
         const g = c.createGain(); adsr(g, t, vol, 0.78, dur, 0.003, 0.08, 0.03); chain(f, g, bus);
-        [[eng.wave(0.3), 1, 0], [null, 0.8, -12]].forEach(([w, v, off]) => {
+        [[eng.wave(0.3), 1, 0], [null, 0.75, -12]].forEach(([w, v, off]) => {
             const o = c.createOscillator(), og = c.createGain(); if (w) o.setPeriodicWave(w); else o.type = 'triangle';
             o.frequency.value = mtof(m + off); og.gain.value = v; o.connect(og); og.connect(f); o.start(t); o.stop(t + dur + 0.06);
         });
+        if (subBus) {                                          // osobny sub: sine oktawę niżej, ciasny dolnoprzepust
+            const lp = biq(c, 'lowpass', 140, 0.7);
+            const sg = c.createGain(); adsr(sg, t, vol * 0.7, 0.9, dur, 0.006, 0.1, 0.06);
+            chain(lp, sg, subBus);
+            const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = mtof(m - 12);
+            o.connect(lp); o.start(t); o.stop(t + dur + 0.08);
+        }
+    }
+    /** Lekkie przyciszenie suba pod stopę (miejsce na kick, bez dziury w basie). */
+    function duckSub(bus, t) {
+        if (!bus) return;
+        const g = bus.gain, att = 0.012, rel = 0.1;
+        try { g.cancelAndHoldAtTime(t); } catch (e) { g.cancelScheduledValues(t); g.setValueAtTime(1, t); }
+        g.linearRampToValueAtTime(0.32, t + att);
+        g.linearRampToValueAtTime(1, t + att + rel);
     }
     function stabHit(eng, bus, t, tones, dur, vol) {
         const c = eng.ctx, f = biq(c, 'lowpass', 3200, 1);
@@ -510,12 +537,12 @@
             if (song.arpWave) basic(eng, B.arp, t, e.arp[s], stepDur * 2.6, song.arpVol, song.arpWave);
             else pluck(eng, B.arp, t, e.arp[s], stepDur * 0.9, song.arpVol, 0.125);
         }
-        if (e.bass[s] !== undefined) bassNote(eng, B.bass, t, e.bass[s], stepDur * 0.9, song.bassVol);
+        if (e.bass[s] !== undefined) bassNote(eng, B.bass, t, e.bass[s], stepDur * 0.9, song.bassVol, B.sub);
         if (e.stab && e.stab.steps[s] === 'x') stabHit(eng, B.stab, t, e.stab.tones, stepDur * 1.7, song.stabVol || 0.06);
         const dv = song.drumVol || 1;
         (e.drums[s] || []).forEach((h) => {
             const a = h.acc ? 1.25 : 1;
-            if (h.type === 'k') kick(eng, B.drum, t, 0.5 * dv * a);
+            if (h.type === 'k') { kick(eng, B.drum, t, 0.5 * dv * a); duckSub(B.sub, t); }
             else if (h.type === 's') snare(eng, B.drum, t, 0.4 * dv * a * (h.c === 'g' ? 0.4 : 1));
             else if (h.type === 'h') hat(eng, B.drum, t, 0.075 * dv * a * (s % 4 === 0 ? 1 : s % 2 === 0 ? 0.75 : 0.5), false);
             else if (h.type === 'o') hat(eng, B.drum, t, 0.08 * dv, true);
@@ -748,7 +775,7 @@
         eng = makeEngine(ctx);
         const M = makeMaster(ctx, muted ? 0 : LEVEL_MASTER);
         master = M.master;
-        musicBus = ctx.createGain(); musicBus.gain.value = 0.55; musicBus.connect(M.input);
+        musicBus = makeMusicBus(ctx, M.input);
         sfxBus = makeSfxBus(ctx, eng, M.input);
         return ctx;
     }
@@ -876,7 +903,7 @@
                     v.stop(4.7, 0.3);
                 }
             } else {
-                const song = SONGS[name], mus = oc.createGain(); mus.gain.value = 0.55; mus.connect(M.input);
+                const song = SONGS[name], mus = makeMusicBus(oc, M.input);
                 const B = makeTrackGraph(oc, e, mus, song), stepDur = 60 / song.bpm / 4;
                 for (let g = 0, t = 0.02; t < len; g++, t += stepDur) if (!scheduleStep(e, B, song, g, t, stepDur)) break;
             }
