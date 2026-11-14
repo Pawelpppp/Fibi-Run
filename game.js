@@ -823,6 +823,74 @@ function addMuteButton(scene, x, y, depth) {
     return { back, icon, zone };
 }
 
+/** Czy przeglądarka pozwala wejść w pełny ekran (iPhone Safari: nie). */
+function fullscreenAvailable(scene) {
+    const dev = scene && scene.sys && scene.sys.game && scene.sys.game.device && scene.sys.game.device.fullscreen;
+    if (dev && typeof dev.available === 'boolean') return dev.available;
+    return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+}
+
+/** F przełącza pełny ekran w każdej scenie; przy wpisywaniu nicku litera F idzie do pola. */
+function bindFullscreenKey(scene) {
+    if (window.__fibiFsKeyBound) return;
+    window.__fibiFsKeyBound = true;
+    window.addEventListener('keydown', (ev) => {
+        const typing = ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA' || ev.target.id === 'fibi-nick-input');
+        if (typing || ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat) return;
+        if (ev.key !== 'f' && ev.key !== 'F') return;
+        const g = window.__arekGame;
+        if (!g || !fullscreenAvailable({ sys: { game: g } })) return;
+        try { g.scale.toggleFullscreen(); } catch (e) { /* headless / brak gestu */ }
+    });
+}
+
+/** Przycisk pełnego ekranu (piksel-art ramka): klik/tap, klawisz F. Ukryty, gdy API niedostępne. */
+function addFullscreenToggle(scene, x, y, depth) {
+    bindFullscreenKey(scene);
+    if (!fullscreenAvailable(scene)) return null;
+    const pal = { g: '#ffd040', w: '#ffffff' };
+    const enter = [
+        '................', 'ggg..........ggg', 'g..............g', 'g..............g',
+        '................', '................', 'g..............g', 'g..............g',
+        'ggg..........ggg', '................',
+    ];
+    const exit = [
+        '................', '...gg......gg...', '...g........g...', 'ggg..........ggg',
+        '................', '................', 'ggg..........ggg', '...g........g...',
+        '...gg......gg...', '................',
+    ];
+    artTex(scene, 'fs_enter', enter, pal, 2);
+    artTex(scene, 'fs_exit', exit, pal, 2);
+    const w = 44, h = 32, d = depth || 40;
+    const back = scene.add.rectangle(x, y, w, h, 0x1e0c30, 0.82).setOrigin(0).setScrollFactor(0).setDepth(d).setStrokeStyle(2, 0xffd040);
+    const icon = scene.add.image(x + w / 2, y + h / 2, scene.scale.isFullscreen ? 'fs_exit' : 'fs_enter').setScrollFactor(0).setDepth(d + 0.1);
+    const zone = scene.add.zone(x - 4, y - 4, w + 8, h + 8).setOrigin(0).setScrollFactor(0).setDepth(d + 0.2).setInteractive({ useHandCursor: true });
+    const refresh = () => {
+        if (!icon.active) return;
+        const on = !!scene.scale.isFullscreen;
+        icon.setTexture(on ? 'fs_exit' : 'fs_enter');
+        back.setStrokeStyle(2, on ? 0x60e8ff : 0xffd040);
+    };
+    zone.on('pointerdown', (p) => {
+        if (p && p.event && p.event.stopPropagation) p.event.stopPropagation();
+        try { scene.scale.toggleFullscreen(); } catch (e) { /* headless / brak gestu */ }
+    });
+    const evEnter = Phaser.Scale.Events.ENTER_FULLSCREEN, evLeave = Phaser.Scale.Events.LEAVE_FULLSCREEN;
+    scene.scale.on(evEnter, refresh);
+    scene.scale.on(evLeave, refresh);
+    let cleaned = false;
+    const cleanup = () => {
+        if (cleaned) return;
+        cleaned = true;
+        scene.scale.off(evEnter, refresh);
+        scene.scale.off(evLeave, refresh);
+    };
+    scene.events.once('shutdown', cleanup);
+    zone.once('destroy', cleanup);
+    refresh();
+    return { back, icon, zone };
+}
+
 /* =====================================================================
    BOOT - wczytanie grafik + tekstur generowanych
    ===================================================================== */
@@ -935,6 +1003,7 @@ class TitleScene extends Phaser.Scene {
             pxText(this, W / 2, 304, '< > SPEED   SPACE JUMP   ALT SWORD', { scale: 1, color: '#f0d8a0', shadow: '#2a1608' }).setDepth(8);
         }
         addMuteButton(this, 8, 6, 30);
+        addFullscreenToggle(this, 56, 6, 30);
         const ver = (typeof window !== 'undefined' && window.FIBI_VERSION) ? String(window.FIBI_VERSION) : '1.dev';
         // czcionka 5x7 ma małe tylko 'v' (prefiks); reszta wersji wielkimi literami (v1.45 / v1.DEV)
         pxText(this, W - 8, 8, 'v' + ver.toUpperCase(), { scale: 1, color: '#c8b090', shadow: '#2a1608', ox: 1 }).setDepth(8);
@@ -1004,6 +1073,7 @@ class IntroScene extends Phaser.Scene {
         kb.on('keydown-ENTER', skip);
         this.input.on('pointerdown', (p, over) => { if (!over || !over.length) skip(); });   // tap w przycisk mute nie pomija intra
         addMuteButton(this, 8, 6, 30);
+        addFullscreenToggle(this, 56, 6, 30);
         audioPlay('intro');
         this.cameras.main.fadeIn(250, 12, 8, 24);
     }
@@ -1333,6 +1403,7 @@ class PlayScene extends Phaser.Scene {
         this.spawnAhead();
 
         addMuteButton(this, 126, 4, 30);
+        addFullscreenToggle(this, 174, 4, 30);
         if (this.startArena) {                          // checkpoint walki z bossem
             this.lives = CFG.BOSS_RETRY_LIVES;
             if (this.totalScore === 0) { for (let l = 1; l <= this.level; l++) this.totalScore += this.levelParams(l).goal; }   // debug (?mission=N)
@@ -1367,7 +1438,7 @@ class PlayScene extends Phaser.Scene {
         }
         this.scoreTxt = pxText(this, W - 8, 8, this.scoreStr(), { scale: 2, color: '#ffd040', shadow: '#3a1008', ox: 1 })
             .setScrollFactor(0).setDepth(10);
-        this.timeTxt = pxText(this, 182, 10, '00:00', { scale: 2, color: '#ffd040', shadow: '#3a1008', ox: 0 })
+        this.timeTxt = pxText(this, 226, 10, '00:00', { scale: 2, color: '#ffd040', shadow: '#3a1008', ox: 0 })
             .setScrollFactor(0).setDepth(10);
         // pasek postępu do celu poziomu
         this.add.rectangle(W - 8 - 121, 25, 122, 8, 0xffd040).setOrigin(0).setScrollFactor(0).setDepth(10);
@@ -3038,6 +3109,7 @@ class BoardScene extends Phaser.Scene {
         this.nick = (window.FibiLeaderboard && FibiLeaderboard.lastNick()) || '';
         this.busy = false;
         this.drawChrome();
+        addFullscreenToggle(this, W - 60, 12, 40);
         const kb = this.input.keyboard;
         if (kb) {
             kb.on('keydown-ESC', () => { if (this.mode === 'view') this.close(); else this.skip(); });
@@ -3347,6 +3419,7 @@ const game = new Phaser.Game({
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: W,
         height: H,
+        fullscreenTarget: 'game-container',
     },
     input: { activePointers: 4, keyboard: { capture: [KC_.SPACE, KC_.ALT, KC_.LEFT, KC_.RIGHT, KC_.UP, KC_.DOWN, KC_.ENTER] } },
     scene: [BootScene, TitleScene, IntroScene, PlayScene, BoardScene],

@@ -148,6 +148,7 @@ Cały dźwięk jest **generowany w przeglądarce** (Web Audio API, plik `audio.j
 | Skok | Spacja (zapasowo ↑, W) | przycisk skok |
 | Atak mieczem | Alt (zapasowo X, Z) | przycisk atak |
 | Wycisz / włącz dźwięk | **M** | ikona głośnika u góry |
+| Pełny ekran | **F** | ikona ramki u góry (ukryta, gdy przeglądarka nie pozwala, np. Safari na iPhonie) |
 | Menu / restart po końcu gry | Spacja lub Enter; Esc = menu; R = zagraj ponownie (po KONIEC GRY) | przycisk na ekranie |
 
 W arenie bossa → / ← poruszają Arka swobodnie po ekranie (ekran się nie przewija).
