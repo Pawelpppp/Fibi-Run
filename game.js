@@ -263,6 +263,21 @@ const CFG = {
         TIME_MAX_MS: 86400000,      // 24 h
     },
 
+    // --- pełny ekran (przycisk ramki / klawisz F) ---
+    FULLSCREEN: {
+        UNSUPPORTED_HINT: 'UDOSTĘPNIJ > DO EKRANU POCZĄTKOWEGO',   // iPhone: brak Fullscreen API
+        FAILED_HINT: 'PEŁNY EKRAN ZABLOKOWANY PRZEZ PRZEGLĄDARKĘ',
+        HINT_MS: 3000,
+        HINT_Y: 40,
+    },
+
+    // --- telefon w pionie: pauza + komunikat „OBRÓĆ TELEFON POZIOMO” (tylko dotyk) ---
+    ORIENTATION: {
+        ENABLED: true,
+        DEBOUNCE_MS: 150,           // iOS podaje nowe wymiary z opóźnieniem
+        REFRESH_LATE_MS: 400,       // drugie odświeżenie skali po obrocie
+    },
+
     // --- tło ---
     TREE_GAP_MIN: 130,      // odstępy między drzewami w tle (px, przestrzeń tła)
     TREE_GAP_MAX: 380,
@@ -823,31 +838,80 @@ function addMuteButton(scene, x, y, depth) {
     return { back, icon, zone };
 }
 
-/** Czy przeglądarka pozwala wejść w pełny ekran (iPhone Safari: nie). */
-function fullscreenAvailable(scene) {
-    const dev = scene && scene.sys && scene.sys.game && scene.sys.game.device && scene.sys.game.device.fullscreen;
-    if (dev && typeof dev.available === 'boolean') return dev.available;
-    return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+/** Czy jest natywne Fullscreen API (iPhone Safari: nie). */
+function fullscreenAvailable() {
+    const el = document.documentElement;
+    return !!(el && (el.requestFullscreen || el.webkitRequestFullscreen));
+}
+
+function activeGameScene(g) {
+    const game = g || window.__arekGame;
+    if (!game || !game.scene) return null;
+    const scenes = game.scene.getScenes(true);
+    return scenes.length ? scenes[scenes.length - 1] : null;
+}
+
+/** Krótka podpowiedź u góry (znika sama). */
+function hintBubble(scene, s, ms, y) {
+    if (!scene || !scene.add) return;
+    const y0 = y == null ? CFG.FULLSCREEN.HINT_Y : y;
+    const t = pxText(scene, W / 2, y0, s, { scale: 1, color: '#fff2c0', shadow: '#120a14' }).setScrollFactor(0).setDepth(4001);
+    const padX = 10, padY = 8;
+    const bg = scene.add.rectangle(W / 2, y0 + t.displayHeight / 2, t.displayWidth + padX * 2, t.displayHeight + padY * 2, 0x140c1c, 0.9)
+        .setStrokeStyle(2, 0xffd040).setScrollFactor(0).setDepth(4000);
+    const c = [bg, t];
+    if (scene._fsHint) scene._fsHint.forEach(o => { if (o && o.destroy) o.destroy(); });
+    scene._fsHint = c;
+    scene.time.delayedCall(ms || CFG.FULLSCREEN.HINT_MS, () => {
+        c.forEach(o => { if (o && o.active) o.destroy(); });
+        if (scene._fsHint === c) scene._fsHint = null;
+    });
+}
+
+/** Pełny ekran: natywne API na całej stronie (<html>), wołane wprost w geście użytkownika
+    (klawisz F albo pointerup na przycisku). Phaser sam słucha fullscreenchange (isFullscreen, refresh).
+    Odmowa -> podpowiedź, bez „Uncaught (in promise)”. iPhone (brak API): podpowiedź o ekranie początkowym. */
+function toggleFullscreen(scene) {
+    const d = document;
+    const sm = scene && scene.scale;
+    if (!fullscreenAvailable()) {
+        if (sm && sm.emit) sm.emit('fullscreenunsupported');
+        if (scene) hintBubble(scene, CFG.FULLSCREEN.UNSUPPORTED_HINT, CFG.FULLSCREEN.HINT_MS, CFG.FULLSCREEN.HINT_Y);
+        return;
+    }
+    const failed = (err) => {
+        if (sm && sm.emit) sm.emit('fullscreenfailed', err);
+        if (scene) hintBubble(scene, CFG.FULLSCREEN.FAILED_HINT, CFG.FULLSCREEN.HINT_MS, CFG.FULLSCREEN.HINT_Y);
+    };
+    try {
+        if (d.fullscreenElement || d.webkitFullscreenElement) {
+            const exit = d.exitFullscreen || d.webkitExitFullscreen;
+            const p = exit && exit.call(d);
+            if (p && p.catch) p.catch(() => {});
+            return;
+        }
+        const el = d.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
+        const p = req.call(el, { navigationUI: 'hide' });
+        if (p && p.catch) p.catch(failed);
+    } catch (err) { failed(err); }
 }
 
 /** F przełącza pełny ekran w każdej scenie; przy wpisywaniu nicku litera F idzie do pola. */
-function bindFullscreenKey(scene) {
+function bindFullscreenKey() {
     if (window.__fibiFsKeyBound) return;
     window.__fibiFsKeyBound = true;
     window.addEventListener('keydown', (ev) => {
         const typing = ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA' || ev.target.id === 'fibi-nick-input');
         if (typing || ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat) return;
         if (ev.key !== 'f' && ev.key !== 'F') return;
-        const g = window.__arekGame;
-        if (!g || !fullscreenAvailable({ sys: { game: g } })) return;
-        try { g.scale.toggleFullscreen(); } catch (e) { /* headless / brak gestu */ }
+        toggleFullscreen(activeGameScene());
     });
 }
 
-/** Przycisk pełnego ekranu (piksel-art ramka): klik/tap, klawisz F. Ukryty, gdy API niedostępne. */
+/** Przycisk pełnego ekranu (piksel-art ramka). Akcja na pointerup = gest uznawany na Androidzie
+    (pointerdown / touchstart nie wystarcza do requestFullscreen). */
 function addFullscreenToggle(scene, x, y, depth) {
-    bindFullscreenKey(scene);
-    if (!fullscreenAvailable(scene)) return null;
+    bindFullscreenKey();
     const pal = { g: '#ffd040', w: '#ffffff' };
     const enter = [
         '................', 'ggg..........ggg', 'g..............g', 'g..............g',
@@ -871,9 +935,13 @@ function addFullscreenToggle(scene, x, y, depth) {
         icon.setTexture(on ? 'fs_exit' : 'fs_enter');
         back.setStrokeStyle(2, on ? 0x60e8ff : 0xffd040);
     };
+    // pointerdown tylko zatrzymuje dotyk (bez skoku / pominięcia intra); akcja na pointerup
     zone.on('pointerdown', (p) => {
         if (p && p.event && p.event.stopPropagation) p.event.stopPropagation();
-        try { scene.scale.toggleFullscreen(); } catch (e) { /* headless / brak gestu */ }
+    });
+    zone.on('pointerup', (p) => {
+        if (p && p.event && p.event.stopPropagation) p.event.stopPropagation();
+        toggleFullscreen(scene);
     });
     const evEnter = Phaser.Scale.Events.ENTER_FULLSCREEN, evLeave = Phaser.Scale.Events.LEAVE_FULLSCREEN;
     scene.scale.on(evEnter, refresh);
@@ -1525,6 +1593,17 @@ class PlayScene extends Phaser.Scene {
         add('attack', 'btn_attack', W - 86, 290);
         add('jump', 'btn_jump', W - 32, 290);
         this.input.on('pointerup', (p) => this.buttons.forEach(b => { b.ids.delete(p.id); b.sync(); }));
+    }
+
+    /** Po obrocie telefonu puszczamy trzymane przyciski, żeby Arek nie biegł sam. */
+    resetHeldInput() {
+        this.touch = this.touch || { left: false, right: false };
+        this.touch.left = false;
+        this.touch.right = false;
+        this.jumpQ = false;
+        this.attackQ = false;
+        if (this.buttons) this.buttons.forEach(b => { b.ids.clear(); if (b.sync) b.sync(); });
+        if (this.input && this.input.keyboard) this.input.keyboard.resetKeys();
     }
 
     /* ---------- spawn ---------- */
@@ -3426,11 +3505,86 @@ const game = new Phaser.Game({
 });
 window.__arekGame = game;   // do debugowania / testów
 
-/* Pion na telefonie: pokazujemy podpowiedź (CSS) i zatrzymujemy grę */
-const portraitMQ = window.matchMedia('(orientation: portrait) and (max-width: 900px)');
-const applyOrientation = () => {
-    if (!game.loop) return;
-    if (portraitMQ.matches) game.loop.sleep(); else if (!game.loop.running) game.loop.wake();
-};
-(portraitMQ.addEventListener ? portraitMQ.addEventListener('change', applyOrientation) : portraitMQ.addListener(applyOrientation));
-game.events.once('ready', () => setTimeout(() => { if (portraitMQ.matches) applyOrientation(); }, 200));
+/* =====================================================================
+   Telefon w pionie: gra się pauzuje (pętla Phasera: fizyka, tweeny, timery)
+   i dźwięk jest wstrzymany, a na wierzchu jest komunikat „OBRÓĆ TELEFON POZIOMO”.
+   Po obróceniu: odświeżenie skali, wznowienie tylko tego, co sami zatrzymaliśmy,
+   i wyzerowanie trzymanych przycisków. Tylko dotyk (IS_TOUCH); na komputerze nigdy.
+   init raz na stronę — restart scen nie dubluje nasłuchów.
+   ===================================================================== */
+const FibiOrientation = (function () {
+    let gameRef = null, overlay = null, timer = null, pausedByUs = false, audioByUs = false, started = false;
+    const vp = () => {
+        const v = window.visualViewport;
+        return v ? { w: v.width, h: v.height } : { w: window.innerWidth, h: window.innerHeight };
+    };
+    function isPortrait() {
+        const { w, h } = vp();
+        if (w && h && w !== h) return h > w;
+        return !!(window.matchMedia && window.matchMedia('(orientation: portrait)').matches);
+    }
+    function makeOverlay() {
+        const o = document.createElement('div');
+        o.id = 'rotate';
+        o.setAttribute('role', 'alert');
+        o.innerHTML = '<div class="rotate-phone"><div class="rotate-screen"></div></div>' +
+            '<div class="rotate-text">OBRÓĆ TELEFON<br>POZIOMO</div>' +
+            '<div class="rotate-sub">GRA JEST ZATRZYMANA</div>';
+        document.body.appendChild(o);
+        return o;
+    }
+    function resetHeldInput() {
+        gameRef.scene.getScenes(true).forEach(s => {
+            if (s.input && s.input.keyboard) s.input.keyboard.resetKeys();
+            if (typeof s.resetHeldInput === 'function') s.resetHeldInput();
+        });
+    }
+    function lockLandscape() {
+        try {
+            const so = screen.orientation;
+            const p = so && so.lock ? so.lock('landscape') : null;
+            if (p && p.catch) p.catch(() => {});
+        } catch (e) { /* brak wsparcia (iOS) */ }
+    }
+    function pause() {
+        if (overlay.classList.contains('show')) return;
+        overlay.classList.add('show');
+        if (!gameRef.isPaused) { gameRef.pause(); pausedByUs = true; }
+        audioByUs = !!(window.FibiAudio && FibiAudio.suspend && FibiAudio.suspend());
+        resetHeldInput();
+    }
+    function resume() {
+        if (!overlay.classList.contains('show')) return;
+        overlay.classList.remove('show');
+        try { gameRef.scale.refresh(); } catch (e) { /* */ }
+        setTimeout(() => { try { gameRef.scale.refresh(); } catch (e) { /* */ } }, CFG.ORIENTATION.REFRESH_LATE_MS);
+        resetHeldInput();
+        if (pausedByUs) { pausedByUs = false; gameRef.resume(); }
+        if (audioByUs) { audioByUs = false; if (window.FibiAudio && FibiAudio.resumeSuspended) FibiAudio.resumeSuspended(); }
+    }
+    function check() { if (isPortrait()) pause(); else resume(); }
+    function schedule() { clearTimeout(timer); timer = setTimeout(check, CFG.ORIENTATION.DEBOUNCE_MS); }
+    return {
+        init(g) {
+            if (started) return;
+            started = true;
+            gameRef = g;
+            if (!CFG.ORIENTATION.ENABLED || !IS_TOUCH) return;
+            overlay = makeOverlay();
+            window.addEventListener('resize', schedule);
+            window.addEventListener('orientationchange', schedule);
+            if (window.visualViewport) window.visualViewport.addEventListener('resize', schedule);
+            const mq = window.matchMedia && window.matchMedia('(orientation: portrait)');
+            if (mq && mq.addEventListener) mq.addEventListener('change', schedule);
+            else if (mq && mq.addListener) mq.addListener(schedule);
+            g.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, lockLandscape);
+            check();
+        },
+        get paused() { return !!(overlay && overlay.classList.contains('show')); },
+        get pausedByUs() { return pausedByUs; },
+        check,
+    };
+})();
+window.FibiOrientation = FibiOrientation;
+game.events.once('ready', () => FibiOrientation.init(game));
+window.__fibiOrientation = () => ({ overlay: FibiOrientation.paused, gamePaused: game.isPaused, byUs: FibiOrientation.pausedByUs });

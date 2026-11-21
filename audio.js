@@ -22,6 +22,7 @@
      carEngine()         - uchwyt silnika auta {set({speed,pan,vol,pitch}), stop(fade)} (speed 0..1.3)
      duck(poziom, czas)  - chwilowe przyciszenie muzyki (np. na grzmot)
      muted / setMuted(v) / toggleMute() / onChange(fn)  - wyciszenie (zapamiętane w localStorage)
+     suspend() / resumeSuspended() - pauza kontekstu (obrót telefonu w pion); zwraca czy to my wstrzymaliśmy
      render(nazwa, sek)  - offline -> Promise<[Float32Array L, R]>; nazwy utworów albo
                            sfx_transform | sfx_car_arrive | sfx_car_passby (podgląd / eksport WAV)
    Wszystkie ustawienia utworów (tempo, tonacja, głośności, sekcje) są w SONGS poniżej.
@@ -906,6 +907,15 @@
         },
         toggleMute() { api.setMuted(!muted); return muted; },
         onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+        /** Wstrzymaj AudioContext (pion telefonu). true = to my zawiesiliśmy działający kontekst. */
+        suspend() {
+            if (!ctx || ctx.state !== 'running') return false;
+            try { ctx.suspend(); } catch (e) { return false; }
+            return true;
+        },
+        resumeSuspended() {
+            if (ctx && ctx.state === 'suspended') { try { ctx.resume(); } catch (e) { /* */ } }
+        },
         /** Renderuje offline: Promise<[L, R]> (Float32Array) o długości `seconds`. Utwór albo sfx_transform / sfx_car_arrive / sfx_car_passby / sfx_lifelost. */
         render(name, seconds, sampleRate) {
             const sr = sampleRate || 44100;
@@ -957,6 +967,7 @@
     }, true);
     document.addEventListener('visibilitychange', () => {
         if (!ctx || !unlocked) return;
-        if (document.hidden) ctx.suspend(); else ctx.resume();
+        if (document.hidden) ctx.suspend();
+            else if (!(window.FibiOrientation && FibiOrientation.paused)) ctx.resume();
     });
 })();

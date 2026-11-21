@@ -148,10 +148,12 @@ Cały dźwięk jest **generowany w przeglądarce** (Web Audio API, plik `audio.j
 | Skok | Spacja (zapasowo ↑, W) | przycisk skok |
 | Atak mieczem | Alt (zapasowo X, Z) | przycisk atak |
 | Wycisz / włącz dźwięk | **M** | ikona głośnika u góry |
-| Pełny ekran | **F** | ikona ramki u góry (ukryta, gdy przeglądarka nie pozwala, np. Safari na iPhonie) |
+| Pełny ekran | **F** | ikona ramki u góry (we wszystkich scenach). Na Androidzie działa po puszczeniu palca (tego gestu przeglądarka wymaga do pełnego ekranu), potem gra prosi o blokadę poziomej orientacji. Na iPhonie Safari nie ma pełnego ekranu dla stron — przycisk pokazuje podpowiedź „UDOSTĘPNIJ > DO EKRANU POCZĄTKOWEGO” |
 | Menu / restart po końcu gry | Spacja lub Enter; Esc = menu; R = zagraj ponownie (po KONIEC GRY) | przycisk na ekranie |
 
 W arenie bossa → / ← poruszają Arka swobodnie po ekranie (ekran się nie przewija).
+
+Telefon trzymaj **poziomo**. Po obróceniu w pion gra się zatrzymuje (fizyka, animacje, timery i dźwięk), a na całym ekranie widać komunikat „OBRÓĆ TELEFON POZIOMO” / „GRA JEST ZATRZYMANA”. Po powrocie do poziomu gra dopasowuje się do ekranu i rusza dalej od tego samego miejsca; trzymane przyciski są puszczane. Tylko na urządzeniach dotykowych — na komputerze komunikat się nie pokazuje.
 
 ## Tablica wyników
 
@@ -188,14 +190,14 @@ Gra pokazuje numer wersji w prawym górnym rogu ekranu tytułowego, w formacie *
 - Wszystkie stałe gry (prędkości, punkty, odstępy, czasy intra i bossa, poziom 2) są na górze `game.js` w obiekcie **`CFG`**
 - Beczka, potworki, serce, krzyżyk, tło, przyciski dotykowe i czcionka 5×7 są **rysowane w kodzie** (tekstury canvas)
 - **Pipeline grafik:** Python + Pillow/NumPy/SciPy (`tools/process_assets.py`) – usuwa namalowaną szachownicę, wyrównuje klatki, zmniejsza do rozmiaru gry, kwantyzuje paletę i zapisuje PNG oraz `assets/game/assets.js` (data-URI, działa z `file://`)
-- Sterowanie dotykowe (multi-touch) i klawiatura; wykrywanie telefonu, overlay „obróć telefon”
+- Sterowanie dotykowe (multi-touch) i klawiatura; wykrywanie telefonu; w pionie pauza z komunikatem „OBRÓĆ TELEFON POZIOMO”
 
 Przebudowa grafik: `pip install pillow numpy scipy` → `python3 tools/process_assets.py`.
 
 ## Struktura projektu
 
 ```
-index.html              # strona, CDN Phaser, podpowiedź "obróć telefon"
+index.html              # strona, CDN Phaser, styl komunikatu "obróć telefon"
 game.js                 # cała gra: CFG, tekstury, sceny Boot/Title/Intro/Play/Board
 audio.js                # muzyka chiptune i efekty (Web Audio), przycisk/klawisz mute
 leaderboard.js          # tablica wyników: Azure Function (API_URL) + localStorage, opcjonalnie Supabase
