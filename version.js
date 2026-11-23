@@ -1,2 +1,2 @@
-window.FIBI_VERSION='1.47';
-window.FIBI_VERSION_SHA='d2c5475';
+window.FIBI_VERSION='1.48';
+window.FIBI_VERSION_SHA='8e6a29c';
