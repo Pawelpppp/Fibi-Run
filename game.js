@@ -1049,6 +1049,7 @@ class TitleScene extends Phaser.Scene {
             if (this.starting || this.scene.isActive('Board')) return;
             this.starting = true;
             if (window.FibiLeaderboard) FibiLeaderboard.startRun();
+            if (window.FibiStats && typeof window.FibiStats.startGame === 'function') window.FibiStats.startGame();
             audioSfx('click');
             this.cameras.main.fadeOut(180, 12, 8, 24);
             // ?mission=N (1..6) - skok do misji (test / debug); bez parametru normalny start z intrem

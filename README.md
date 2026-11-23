@@ -17,7 +17,18 @@ Inspiracja: **Mustache Protocol** (Henry Cavill + Google) – 16-bitowy side-scr
 - Parametr URL `?mission=N` (1–6) startuje wskazaną misję (boss od areny; `?mission=3` = T-shirt bez miecza); `?nointro` pomija intro i od razu startuje misję 1 (przydatne przy testach).
 - Telefon w pionie pokazuje podpowiedź „Obróć telefon poziomo” i wstrzymuje grę.
 
+## Statystyki odwiedzin
+
+Niewidoczne liczenie wejść przez [GoatCounter](https://www.goatcounter.com) (bez cookies, na stronie nic nie widać). Kod konta wpisujesz w **jednym miejscu**, na górze `stats.js`:
+
+```js
+window.FIBI_STATS = { GOATCOUNTER_CODE: 'TWOJ-KOD' };
+```
+
+Zamień `TWOJ-KOD` na kod ze swojego konta (panel jest pod `https://KOD.goatcounter.com`). Dopóki zostaje placeholder, skrypt się nie ładuje. Wejścia z `localhost`, `127.0.0.1` i `file://` nie są liczone. Przy starcie **NEW GAME** wysyłane jest zdarzenie `start-gry`.
+
 ## Fabuła w skrócie
+
 
 1. **Intro:** Arek (casual: czerwony t-shirt, spodenki, trampki) spaceruje z Fibi na smyczy. Obok przejeżdża samochód z księdzem Kamilem, pies się płoszy, zrywa smycz i ucieka w prawo.
 2. Arek wyciąga zza pleców miecz i unosi go nad głowę, z nieba uderza **piorun**, następuje **transformacja** w złotą zbroję i Arek biegnie za psem – zaczyna się **misja 1** (bieg).
