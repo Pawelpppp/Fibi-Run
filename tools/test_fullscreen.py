@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Fibi Run: pełny ekran na pointerup (gest Androida) i pauza po obrocie w pion.
-API tablicy jest mockowane — nigdy nie wołamy żywego Azure."""
+"""Fibi Run: pełny ekran przez natywny przycisk HTML (gest Androida) i pauza po obrocie w pion.
+API tablicy i GoatCounter są blokowane — nigdy nie wołamy żywych serwisów."""
 from playwright.sync_api import sync_playwright
 import http.server, json, os, sys, threading, time
 
@@ -116,6 +116,11 @@ def fs_info(page):
                               vis: getComputedStyle(rot).display !== 'none' }} : null,
             nick: el ? el.value : null,
             rotateCount: document.querySelectorAll('#rotate').length,
+            fsBtn: (() => {{ const b = document.getElementById('fibi-fs-btn'); if (!b) return null;
+                const r = b.getBoundingClientRect();
+                return {{ display: b.style.display, w: r.width, h: r.height, x: r.x, y: r.y }}; }})(),
+            hints: (() => {{ const s = g.scene.getScenes(true).slice(-1)[0];
+                return s ? s.children.list.map(o => o._str || '').filter(Boolean) : []; }})(),
         }};
     }}""")
 
@@ -132,6 +137,28 @@ def click_game(page, gx, gy):
     x, y = game_xy(page, gx, gy)
     page.mouse.click(x, y)
 
+def wait_fs_btn(page, t=4000):
+    page.wait_for_function("""() => {
+        const b = document.getElementById('fibi-fs-btn');
+        if (!b) return false;
+        const r = b.getBoundingClientRect();
+        return b.style.display !== 'none' && r.width > 0 && r.height > 0;
+    }""", timeout=t)
+    return page.locator('#fibi-fs-btn')
+
+def fs_btn_center(page):
+    return page.evaluate("""() => {
+        const r = document.getElementById('fibi-fs-btn').getBoundingClientRect();
+        return [r.x + r.width / 2, r.y + r.height / 2];
+    }""")
+
+def hint_text(page):
+    return page.evaluate(f"""() => {{
+        const s = {G}.scene.getScenes(true).slice(-1)[0];
+        if (!s) return '';
+        return s.children.list.map(o => o._str || '').filter(Boolean).join('|');
+    }}""")
+
 def fail(msg):
     errs.append(msg)
     print('ERR', msg)
@@ -147,6 +174,11 @@ def main():
         def hook(page):
             page.route('**/api/scores', mock)
             page.route('**/*azurewebsites.net/**', mock)
+            def block_goat(route):
+                route.abort()
+            page.route('**/*goatcounter*', block_goat)
+            page.route('**/gc.zgo.at/**', block_goat)
+            page.route('**://zgo.at/**', block_goat)
             page.on('pageerror', lambda e: errs.append(f'PAGEERR {e}'))
             page.on('console', lambda m: console.append(m.type + ': ' + m.text)
                     if m.type in ('error',) and not noisy(m.text) else None)
@@ -157,16 +189,19 @@ def main():
         page.goto(base, wait_until='domcontentloaded')
         wait_scene(page, 'Title')
         page.wait_for_timeout(400)
+        wait_fs_btn(page)
         install_spy(page)
         info = fs_info(page)
         print('TITLE', info)
         if not any(s['scene'] == 'Title' and s['icons'] for s in info['icons']):
             fail(f'no fs button on Title: {info}')
+        if not (info.get('fsBtn') and info['fsBtn']['w'] > 0):
+            fail(f'HTML fs button missing on Title: {info.get("fsBtn")}')
         page.screenshot(path=f'{SHOT}/mfs_title.png')
         print('screenshot:', f'{SHOT}/mfs_title.png')
 
         before = info['req']
-        click_game(page, 78, 22)
+        wait_fs_btn(page).click()
         page.wait_for_timeout(250)
         info = fs_info(page)
         print('TITLE click', info)
@@ -176,6 +211,8 @@ def main():
             fail(f'fullscreen target was {info["tag"]}, expected HTML')
         if 'Title' not in info['scenes'] or 'Play' in info['scenes'] or 'Intro' in info['scenes']:
             fail(f'click on fs button started the game: {info["scenes"]}')
+        if any('UDOST' in (h or '') or 'POCZĄTKOWEGO' in (h or '') for h in info.get('hints') or []):
+            fail(f'desktop showed iOS unsupported hint: {info.get("hints")}')
 
         # po kliku jesteśmy w pełnym ekranie — F ma wyjść
         before_exit = info['exit']
@@ -200,6 +237,7 @@ def main():
         page.keyboard.press('Space')
         wait_scene(page, 'Play')
         page.wait_for_timeout(500)
+        wait_fs_btn(page)
         install_spy(page)
         info = fs_info(page)
         print('PLAY', info)
@@ -208,7 +246,7 @@ def main():
         page.screenshot(path=f'{SHOT}/mfs_play.png')
         print('screenshot:', f'{SHOT}/mfs_play.png')
         before = info['req']
-        click_game(page, 196, 20)
+        wait_fs_btn(page).click()
         page.wait_for_timeout(250)
         info = fs_info(page)
         print('PLAY click', info)
@@ -276,15 +314,18 @@ def main():
         mobile.goto(base, wait_until='domcontentloaded')
         wait_scene(mobile, 'Title', 15000)
         mobile.wait_for_timeout(500)
+        wait_fs_btn(mobile)
         install_spy(mobile)
         info = fs_info(mobile)
         print('MOBILE title', info)
         if not any(s['scene'] == 'Title' and s['icons'] for s in info['icons']):
             fail(f'no fs button on mobile Title: {info}')
+        if not (info.get('fsBtn') and info['fsBtn']['w'] > 0):
+            fail(f'HTML fs button missing on mobile Title: {info.get("fsBtn")}')
         mobile.screenshot(path=f'{SHOT}/mfs_mobile_title.png')
         print('screenshot:', f'{SHOT}/mfs_mobile_title.png')
 
-        x, y = game_xy(mobile, 78, 22)
+        x, y = fs_btn_center(mobile)
         cdp = mobile.context.new_cdp_session(mobile)
         before = fs_info(mobile)['req']
         cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': x, 'y': y}]})
@@ -298,11 +339,19 @@ def main():
         after = fs_info(mobile)
         print('MOBILE touchend', after)
         if after['req'] < before + 1:
-            fail(f'touchend on Title did not call requestFullscreen (req={after["req"]}, before={before})')
+            # zapas: prawdziwy tap na przycisk HTML (click/pointerup)
+            wait_fs_btn(mobile).tap()
+            mobile.wait_for_timeout(300)
+            after = fs_info(mobile)
+            print('MOBILE html tap fallback', after)
+        if after['req'] < before + 1:
+            fail(f'tap on Title fs button did not call requestFullscreen (req={after["req"]}, before={before})')
         if after.get('tag') and after['tag'] not in ('HTML', 'html'):
             fail(f'mobile fullscreen target was {after["tag"]}, expected HTML')
         if 'Title' not in after['scenes'] or 'Play' in after['scenes'] or 'Intro' in after['scenes']:
             fail(f'touch on fs button started the game: {after["scenes"]}')
+        if any('UDOST' in (h or '') or 'POCZĄTKOWEGO' in (h or '') for h in after.get('hints') or []):
+            fail(f'Android Chrome showed iOS unsupported hint: {after.get("hints")}')
         # blokada orientacji — wołana po faktycznym wejściu w FS; w headless często nie wejdzie,
         # więc lock sprawdzamy przez ręczne emitowanie zdarzenia Phasera
         mobile.evaluate(f"{G}.scale.emit(Phaser.Scale.Events.ENTER_FULLSCREEN)")
@@ -421,13 +470,13 @@ def main():
         iph.goto(base, wait_until='domcontentloaded')
         wait_scene(iph, 'Title', 15000)
         iph.wait_for_timeout(400)
+        wait_fs_btn(iph)
         install_spy(iph)
         iph.evaluate(f"window.__unsup=0; {G}.scale.on('fullscreenunsupported',()=>window.__unsup++)")
         info = fs_info(iph)
         if not any(s['scene'] == 'Title' and s['icons'] for s in info['icons']):
             fail(f'fs button hidden on iPhone: {info}')
-        x, y = game_xy(iph, 78, 22)
-        iph.touchscreen.tap(x, y)
+        wait_fs_btn(iph).tap()
         iph.wait_for_timeout(400)
         unsup = iph.evaluate('window.__unsup')
         print('IPHONE unsup', unsup)

@@ -838,10 +838,29 @@ function addMuteButton(scene, x, y, depth) {
     return { back, icon, zone };
 }
 
-/** Czy jest natywne Fullscreen API (iPhone Safari: nie). */
+/** Funkcja requestFullscreen na elemencie (także prefiks webkit, w tym webkitRequestFullScreen). */
+function fsRequestFn(el) {
+    if (!el) return null;
+    return el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || null;
+}
+
+function fsTargets() {
+    const game = window.__arekGame;
+    const list = [document.documentElement, document.body, document.getElementById('game-container')];
+    if (game && game.canvas) list.push(game.canvas);
+    return list.filter(Boolean);
+}
+
+/** API jest naprawdę nieobecne tylko gdy żadna wersja requestFullscreen nie istnieje (iPhone Safari).
+    Nie używamy document.fullscreenEnabled — na Androidzie bywa fałszywe, a metoda i tak działa po geście. */
 function fullscreenAvailable() {
-    const el = document.documentElement;
-    return !!(el && (el.requestFullscreen || el.webkitRequestFullscreen));
+    const proto = (typeof Element !== 'undefined' && Element.prototype) ? Element.prototype : {};
+    if (proto.requestFullscreen || proto.webkitRequestFullscreen || proto.webkitRequestFullScreen) return true;
+    return fsTargets().some(fsRequestFn);
+}
+
+function fsLog(err) {
+    try { console.warn('Fibi Run fullscreen:', err); } catch (e) { /* */ }
 }
 
 function activeGameScene(g) {
@@ -868,32 +887,85 @@ function hintBubble(scene, s, ms, y) {
     });
 }
 
-/** Pełny ekran: natywne API na całej stronie (<html>), wołane wprost w geście użytkownika
-    (klawisz F albo pointerup na przycisku). Phaser sam słucha fullscreenchange (isFullscreen, refresh).
-    Odmowa -> podpowiedź, bez „Uncaught (in promise)”. iPhone (brak API): podpowiedź o ekranie początkowym. */
-function toggleFullscreen(scene) {
+function isNativeFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function exitNativeFullscreen() {
     const d = document;
+    const exit = d.exitFullscreen || d.webkitExitFullscreen || d.webkitCancelFullScreen;
+    if (!exit) return;
+    try {
+        const p = exit.call(d);
+        if (p && p.catch) p.catch((err) => fsLog(err));
+    } catch (err) { fsLog(err); }
+}
+
+/** Wywołanie synchroniczne (w geście). Prefiks webkit czasem nie przyjmuje obiektu opcji. */
+function tryRequestOn(el, opts) {
+    const req = fsRequestFn(el);
+    if (!req) return { missing: true };
+    const isWebkit = req === el.webkitRequestFullscreen || req === el.webkitRequestFullScreen;
+    try {
+        let p;
+        if (isWebkit) {
+            try { p = req.call(el, opts); } catch (e) { p = req.call(el); }
+        } else {
+            p = req.call(el, opts);
+        }
+        return { missing: false, ok: true, p: p };
+    } catch (err) {
+        fsLog(err);
+        return { missing: false, ok: false, err: err };
+    }
+}
+
+/** Pełny ekran: wołane wprost w natywnym geście DOM (click / pointerup na przycisku HTML albo klawisz F).
+    Podpowiedź iOS tylko gdy API naprawdę nie istnieje. Odmowa: kolejne cele (html, body, kontener, canvas), log, potem komunikat o blokadzie. */
+function toggleFullscreen(scene) {
     const sm = scene && scene.scale;
+    const opts = { navigationUI: 'hide' };
+    if (isNativeFullscreen()) { exitNativeFullscreen(); return; }
     if (!fullscreenAvailable()) {
         if (sm && sm.emit) sm.emit('fullscreenunsupported');
         if (scene) hintBubble(scene, CFG.FULLSCREEN.UNSUPPORTED_HINT, CFG.FULLSCREEN.HINT_MS, CFG.FULLSCREEN.HINT_Y);
         return;
     }
     const failed = (err) => {
+        fsLog(err);
         if (sm && sm.emit) sm.emit('fullscreenfailed', err);
         if (scene) hintBubble(scene, CFG.FULLSCREEN.FAILED_HINT, CFG.FULLSCREEN.HINT_MS, CFG.FULLSCREEN.HINT_Y);
     };
-    try {
-        if (d.fullscreenElement || d.webkitFullscreenElement) {
-            const exit = d.exitFullscreen || d.webkitExitFullscreen;
-            const p = exit && exit.call(d);
-            if (p && p.catch) p.catch(() => {});
-            return;
-        }
-        const el = d.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
-        const p = req.call(el, { navigationUI: 'hide' });
-        if (p && p.catch) p.catch(failed);
-    } catch (err) { failed(err); }
+    const targets = fsTargets();
+    let firstP = null, firstEl = null, lastErr = null, tried = 0;
+    for (let i = 0; i < targets.length; i++) {
+        const r = tryRequestOn(targets[i], opts);
+        if (r.missing) continue;
+        tried++;
+        if (r.ok) { firstP = r.p; firstEl = targets[i]; break; }
+        lastErr = r.err;
+    }
+    if (!firstEl) {
+        if (!tried) {
+            if (sm && sm.emit) sm.emit('fullscreenunsupported');
+            if (scene) hintBubble(scene, CFG.FULLSCREEN.UNSUPPORTED_HINT, CFG.FULLSCREEN.HINT_MS, CFG.FULLSCREEN.HINT_Y);
+        } else failed(lastErr || new Error('fullscreen request failed'));
+        return;
+    }
+    if (firstP && firstP.catch) {
+        firstP.catch((err) => {
+            fsLog(err);
+            const rest = targets.filter((el) => el !== firstEl);
+            const next = (i, prev) => {
+                if (i >= rest.length) { failed(prev); return; }
+                const r = tryRequestOn(rest[i], opts);
+                if (r.missing) { next(i + 1, prev); return; }
+                if (r.ok && r.p && r.p.catch) r.p.catch((e) => { fsLog(e); next(i + 1, e); });
+                else if (!r.ok) next(i + 1, r.err || prev);
+            };
+            next(0, err);
+        });
+    }
 }
 
 /** F przełącza pełny ekran w każdej scenie; przy wpisywaniu nicku litera F idzie do pola. */
@@ -908,10 +980,66 @@ function bindFullscreenKey() {
     });
 }
 
-/** Przycisk pełnego ekranu (piksel-art ramka). Akcja na pointerup = gest uznawany na Androidzie
-    (pointerdown / touchstart nie wystarcza do requestFullscreen). */
+function layoutFsDomButton() {
+    const btn = document.getElementById('fibi-fs-btn');
+    if (!btn) return;
+    const game = window.__arekGame;
+    const scene = activeGameScene();
+    const hit = (scene && scene._fsHit) || window.__fibiFsHit;
+    if (!game || !game.canvas || !hit) { btn.style.display = 'none'; return; }
+    const r = game.canvas.getBoundingClientRect();
+    if (!r.width || !r.height) { requestAnimationFrame(layoutFsDomButton); return; }
+    const sx = r.width / W, sy = r.height / H;
+    btn.style.display = 'block';
+    btn.style.left = Math.round(r.left + hit.x * sx) + 'px';
+    btn.style.top = Math.round(r.top + hit.y * sy) + 'px';
+    btn.style.width = Math.max(8, Math.round(hit.w * sx)) + 'px';
+    btn.style.height = Math.max(8, Math.round(hit.h * sy)) + 'px';
+}
+
+/** Natywny przezroczysty <button> nad ramką: click/pointerup to prawdziwy gest DOM,
+    który Android Chrome uznaje za zgodę na pełny ekran (Phaserowy pointerup często już nie). */
+function bindFsDomButton() {
+    if (window.__fibiFsDomBound) return;
+    window.__fibiFsDomBound = true;
+    const btn = document.createElement('button');
+    btn.id = 'fibi-fs-btn';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Pełny ekran');
+    document.body.appendChild(btn);
+    let fromPointer = false;
+    const go = (ev) => {
+        if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+        toggleFullscreen(activeGameScene());
+    };
+    btn.addEventListener('pointerup', (ev) => {
+        if (ev.button) return;
+        fromPointer = true;
+        go(ev);
+    });
+    btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (fromPointer) { fromPointer = false; return; }
+        go(ev);
+    });
+    const relayout = () => layoutFsDomButton();
+    window.addEventListener('resize', relayout);
+    window.addEventListener('orientationchange', relayout);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', relayout);
+    const game = window.__arekGame;
+    if (game && game.scale) {
+        game.scale.on('resize', relayout);
+        game.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, relayout);
+        game.scale.on(Phaser.Scale.Events.LEAVE_FULLSCREEN, relayout);
+    }
+    layoutFsDomButton();
+}
+
+/** Przycisk pełnego ekranu (piksel-art ramka). Gest obsługuje natywny przycisk HTML nad ikoną. */
 function addFullscreenToggle(scene, x, y, depth) {
     bindFullscreenKey();
+    bindFsDomButton();
     const pal = { g: '#ffd040', w: '#ffffff' };
     const enter = [
         '................', 'ggg..........ggg', 'g..............g', 'g..............g',
@@ -935,26 +1063,30 @@ function addFullscreenToggle(scene, x, y, depth) {
         icon.setTexture(on ? 'fs_exit' : 'fs_enter');
         back.setStrokeStyle(2, on ? 0x60e8ff : 0xffd040);
     };
-    // pointerdown tylko zatrzymuje dotyk (bez skoku / pominięcia intra); akcja na pointerup
+    // strefa Phaser zostaje (kursor, nie pomija intra), ale requestFullscreen idzie tylko z przycisku HTML
     zone.on('pointerdown', (p) => {
         if (p && p.event && p.event.stopPropagation) p.event.stopPropagation();
-    });
-    zone.on('pointerup', (p) => {
-        if (p && p.event && p.event.stopPropagation) p.event.stopPropagation();
-        toggleFullscreen(scene);
     });
     const evEnter = Phaser.Scale.Events.ENTER_FULLSCREEN, evLeave = Phaser.Scale.Events.LEAVE_FULLSCREEN;
     scene.scale.on(evEnter, refresh);
     scene.scale.on(evLeave, refresh);
+    scene._fsHit = { x: x - 4, y: y - 4, w: w + 8, h: h + 8 };
+    window.__fibiFsHit = scene._fsHit;
+    layoutFsDomButton();
+    requestAnimationFrame(layoutFsDomButton);
+    setTimeout(layoutFsDomButton, 50);
     let cleaned = false;
     const cleanup = () => {
         if (cleaned) return;
         cleaned = true;
         scene.scale.off(evEnter, refresh);
         scene.scale.off(evLeave, refresh);
+        if (window.__fibiFsHit === scene._fsHit) window.__fibiFsHit = null;
+        scene._fsHit = null;
+        // po starcie nowej sceny addFullscreenToggle ustawi hit i znowu ułoży przycisk
+        requestAnimationFrame(layoutFsDomButton);
     };
     scene.events.once('shutdown', cleanup);
-    zone.once('destroy', cleanup);
     refresh();
     return { back, icon, zone };
 }
