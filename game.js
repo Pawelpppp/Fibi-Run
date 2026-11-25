@@ -30,6 +30,13 @@ const CFG = {
         HEIGHT: 72,             // wysokość nad ziemią (trzeba podskoczyć)
         RAMP: 5,                // jak szybko ekran przyspiesza / zwalnia (1/s)
     },
+    // --- przyspieszenie ekranu przy prawej krawędzi (tylko misje biegowe) ---
+    EDGE_BOOST: {
+        START: 0.60,            // początek strefy (udział szerokości ekranu, od lewej)
+        MAX: 1.6,               // mnożnik przewijania przy prawej krawędzi (bez błyskawicy)
+        SMOOTH: 6,              // jak szybko mnożnik dogania cel (1/s)
+        CAP: 2.2,               // górny limit razem z błyskawicą
+    },
     EDGE_MARGIN: 20,        // ile px od krawędzi ekranu Arek może dojść (połowa jego szerokości)
 
     // --- skok ---
@@ -1570,7 +1577,7 @@ class PlayScene extends Phaser.Scene {
         this.attackCd = 0;
         this.facing = 1;
         this.barrels = []; this.monsters = []; this.hearts = []; this.crosses = []; this.bolts = [];
-        this.boostT = 0; this.boostMul = 1; this.hahaK = null;
+        this.boostT = 0; this.boostMul = 1; this.edgeMul = 1; this.hahaK = null;
         this.boostHud = null;   // instancja sceny jest używana ponownie (restart / następna misja) - obiekty HUD z poprzedniego przebiegu są już zniszczone
         this.boss = null; this.fibi = null; this.car = null; this.carObj = null; this.carBar = null; this.carInfo = null;
         if (this.carSnd) this.carSnd.stop(0.05);
@@ -1934,13 +1941,20 @@ class PlayScene extends Phaser.Scene {
 
         // --- ruch poziomy Arka i kamera zależnie od trybu ---
         let animSpeed = 1;
+        if (this.mode !== 'run') this.edgeMul = 1;
         if (this.mode === 'run') {
             let v = L.normal;
             if (right && !left) v = L.fast; else if (left && !right) v = L.slow;
             this.scrollCur += (L.scroll - this.scrollCur) * Math.min(1, dt * 2.5);
             this.boostT = Math.max(0, this.boostT - dt);
             this.boostMul += ((this.boostT > 0 ? CFG.SPEED_ITEM.MULT : 1) - this.boostMul) * Math.min(1, dt * CFG.SPEED_ITEM.RAMP);
-            this.camX += this.scrollCur * this.boostMul * dt;
+            const E = CFG.EDGE_BOOST;
+            const sx = (a.x - this.camX) / W, maxSx = (W - CFG.EDGE_MARGIN) / W;
+            let edgeTarget = 1;
+            if (sx > E.START) edgeTarget = 1 + (E.MAX - 1) * Math.min(1, (sx - E.START) / Math.max(0.01, maxSx - E.START));
+            this.edgeMul += (edgeTarget - this.edgeMul) * Math.min(1, dt * E.SMOOTH);
+            const scrollMul = Math.min(E.CAP, this.boostMul * this.edgeMul);
+            this.camX += this.scrollCur * scrollMul * dt;
             a.x += v * this.boostMul * dt;            // z błyskawicą Arek biegnie tak samo szybciej względem podłoża (zostaje w miejscu na ekranie)
             animSpeed = v * this.boostMul / CFG.SPEED_NORMAL;
         } else if (this.mode === 'rush') {
