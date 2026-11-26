@@ -62,10 +62,11 @@ def settle(pg, ms=900):
     pg.wait_for_timeout(ms)
 
 def cam_speed(pg, ms=400):
-    a = ev(pg, f"{S}.camX")
+    a = ev(pg, f"() => {{ const s = {S}; return {{ cam: s.camX, t: s.clock }}; }}")
     pg.wait_for_timeout(ms)
-    b = ev(pg, f"{S}.camX")
-    return (b - a) / (ms / 1000.0)
+    b = ev(pg, f"() => {{ const s = {S}; return {{ cam: s.camX, t: s.clock }}; }}")
+    dt = b['t'] - a['t']
+    return (b['cam'] - a['cam']) / dt if dt > 0 else 0
 
 def st(pg):
     return ev(pg, f"""() => {{
@@ -114,7 +115,7 @@ def main():
 
         cfg = ev(page, "CFG.EDGE_BOOST")
         print('CFG.EDGE_BOOST', cfg)
-        if not cfg or cfg['START'] != 0.6 or cfg['MAX'] != 1.6 or cfg['CAP'] != 2.2:
+        if not cfg or abs(cfg['START']-0.5)>1e-6 or abs(cfg['MAX']-2.0)>1e-6 or abs(cfg['CAP']-2.6)>1e-6:
             fail(f'unexpected EDGE_BOOST: {cfg}')
         base_scroll = ev(page, f"{S}.L.scroll")
 
@@ -130,6 +131,17 @@ def main():
             fail(f'edgeMul should be ~1 at mid, got {info["edgeMul"]:.3f}')
         page.screenshot(path=f'{SHOT}/edge_mid.png')
 
+        # --- tuż przed 50%: jeszcze bez przyspieszenia ---
+        pin(page, 0.45)
+        settle(page, 800)
+        v_pre = cam_speed(page, 400)
+        info = st(page)
+        print('PRE50', v_pre, info)
+        if info['edgeMul'] > 1.05:
+            fail(f'edgeMul should be ~1 below 50%, got {info["edgeMul"]:.3f}')
+        if abs(v_pre - v_mid) > 15:
+            fail(f'speed changed below 50%: mid={v_mid:.1f} pre={v_pre:.1f}')
+
         # --- prawa krawędź: szybciej ---
         pin(page, (568 - 20) / 568)
         settle(page, 1000)
@@ -139,7 +151,7 @@ def main():
         page.screenshot(path=f'{SHOT}/edge_right.png')
         if v_edge < v_mid * 1.35:
             fail(f'right edge did not speed up enough: mid={v_mid:.1f} edge={v_edge:.1f}')
-        if info['edgeMul'] < 1.4:
+        if info['edgeMul'] < 1.7:
             fail(f'edgeMul too low at right edge: {info["edgeMul"]:.3f}')
         if not info['onScreen']:
             fail(f'hero left the screen at edge: {info}')

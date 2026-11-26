@@ -32,10 +32,10 @@ const CFG = {
     },
     // --- przyspieszenie ekranu przy prawej krawędzi (tylko misje biegowe) ---
     EDGE_BOOST: {
-        START: 0.60,            // początek strefy (udział szerokości ekranu, od lewej)
-        MAX: 1.6,               // mnożnik przewijania przy prawej krawędzi (bez błyskawicy)
+        START: 0.50,            // początek strefy (udział szerokości ekranu, od lewej)
+        MAX: 2.0,               // mnożnik przewijania przy prawej krawędzi (bez błyskawicy)
         SMOOTH: 6,              // jak szybko mnożnik dogania cel (1/s)
-        CAP: 2.2,               // górny limit razem z błyskawicą
+        CAP: 2.6,               // górny limit razem z błyskawicą
     },
     EDGE_MARGIN: 20,        // ile px od krawędzi ekranu Arek może dojść (połowa jego szerokości)
 
@@ -118,7 +118,7 @@ const CFG = {
     BOSS_SPELL_MIN: 2.0,        // s - odstęp między czarami (losowo min..max)
     BOSS_SPELL_MAX: 3.4,
     BOSS_SPELL_WINDUP: 0.65,    // s - Kamil unosi krzyżyk przed wystrzałem
-    STOMP_BOUNCE: 330,          // px/s - odbicie Arka po skoczeniu na Kamila
+    STOMP_BOUNCE: 330,          // px/s - odbicie Arka po naskoku na potworka albo bossa
     CROSS_SPEED: 175,           // px/s - prędkość krzyżyka
     CROSS_HIGH_CHANCE: 0.45,    // szansa na krzyżyk wysoko (trzeba nie skakać) zamiast przy ziemi (trzeba przeskoczyć)
     CROSS_LOW_Y: 12,            // wysokość środka niskiego krzyżyka nad ziemią
@@ -2096,7 +2096,14 @@ class PlayScene extends Phaser.Scene {
                 box = { l: m.wx - m.hw, r: m.wx + m.hw, t: CFG.GROUND_Y - m.h, b: CFG.GROUND_Y };
             }
             if (sword && PlayScene.hit(sword, box)) { this.killMonster(m); if (this.mode !== 'run') return true; continue; }
-            if (PlayScene.hit(body, box)) this.hurt();
+            if (PlayScene.hit(body, box)) {
+                if (this.isStomp(box)) {
+                    this.stompMonster(m, box);
+                    if (this.mode !== 'run') return true;
+                    continue;
+                }
+                this.hurt();
+            }
             if (m.wx < this.camX - 60) { m.s.destroy(); this.monsters.splice(i, 1); }
         }
         for (let i = this.barrels.length - 1; i >= 0; i--) {
@@ -2118,6 +2125,20 @@ class PlayScene extends Phaser.Scene {
         this.updateBolts(body);
         this.updateSwordItem();
         return this.state === 'play';
+    }
+
+    /** Naskok z góry: spada (vy > 0, tu próg 30) i stopy były nad czubkiem / środkiem celu. */
+    isStomp(box) {
+        const a = this.a;
+        return a.vy > 30 && (a.prevY - 2) <= box.t + 14;
+    }
+
+    /** Zabija zwykłego potworka naskokiem (z mieczem albo bez) i odbija Arka. Bossy mają własną obsługę. */
+    stompMonster(m, box) {
+        const a = this.a;
+        this.killMonster(m);
+        a.vy = -CFG.STOMP_BOUNCE; a.onGround = false; a.y = box.t - 3;
+        audioSfx('stomp');
     }
 
     killMonster(m) {
@@ -2343,8 +2364,7 @@ class PlayScene extends Phaser.Scene {
         if (sword && b.invuln <= 0 && PlayScene.hit(sword, kb)) this.hitBoss(Math.sign(b.x - a.x) || 1);
         // dotyk: skok na głowę (stomp) albo obrażenia
         if (PlayScene.hit(body, kb)) {
-            const stomp = a.vy > 30 && (a.prevY - 2) <= kb.t + 14;
-            if (stomp) {
+            if (this.isStomp(kb)) {
                 if (b.invuln <= 0) this.hitBoss(Math.sign(b.x - a.x) || 1);
                 a.vy = -CFG.STOMP_BOUNCE; a.onGround = false; a.y = kb.t - 3;
                 audioSfx('stomp');
@@ -2482,8 +2502,7 @@ class PlayScene extends Phaser.Scene {
         const rb = this.rafalBox();
         if (sword && b.invuln <= 0 && PlayScene.hit(sword, rb)) this.hitBoss(Math.sign(b.x - a.x) || 1);
         if (this.boss && this.boss.hp > 0 && PlayScene.hit(body, rb)) {
-            const stomp = a.vy > 30 && (a.prevY - 2) <= rb.t + 14;
-            if (stomp) {
+            if (this.isStomp(rb)) {
                 if (b.invuln <= 0) this.hitBoss(Math.sign(b.x - a.x) || 1);
                 a.vy = -CFG.STOMP_BOUNCE; a.onGround = false; a.y = rb.t - 3;
                 audioSfx('stomp');
